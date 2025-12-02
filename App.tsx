@@ -34,15 +34,31 @@ const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
-            // Lấy profile user từ Firestore để có điểm số
-            const userRef = doc(db, "users", firebaseUser.uid);
-            const userSnap = await getDoc(userRef);
-            
-            if (userSnap.exists()) {
-                 setUser(userSnap.data() as User);
-            } else {
-                 // Fallback
-                 setUser({
+            // Khi có user đăng nhập, thử lấy profile
+            try {
+                const userRef = doc(db, "users", firebaseUser.uid);
+                const userSnap = await getDoc(userRef);
+                
+                if (userSnap.exists()) {
+                    setUser(userSnap.data() as User);
+                } else {
+                    // Fallback
+                    setUser({
+                        id: firebaseUser.uid,
+                        name: firebaseUser.displayName || 'User',
+                        avatar: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName || 'U'}&background=random`,
+                        email: firebaseUser.email || '',
+                        points: 0,
+                        badge: 'Thành viên mới',
+                        badgeType: 'new'
+                    });
+                }
+                // Tự động đóng form auth nếu đang mở
+                setShowAuth(false);
+            } catch (e) {
+                console.error("Error fetching user profile:", e);
+                // Vẫn set user cơ bản để app hoạt động
+                setUser({
                     id: firebaseUser.uid,
                     name: firebaseUser.displayName || 'User',
                     avatar: firebaseUser.photoURL || '',
@@ -51,6 +67,7 @@ const App: React.FC = () => {
                     badge: 'Mới',
                     badgeType: 'new'
                  });
+                 setShowAuth(false);
             }
         } else {
             setUser(null);
@@ -77,6 +94,7 @@ const App: React.FC = () => {
   // 3. Tải bài viết từ Firestore (Realtime)
   useEffect(() => {
     setIsLoading(true);
+    // Sử dụng snapshot để real-time update
     const q = query(collection(db, "posts"), orderBy("timestamp", "desc"));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -90,6 +108,9 @@ const App: React.FC = () => {
             } as Post;
         });
         setPosts(fetchedPosts);
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error loading posts:", error);
         setIsLoading(false);
     });
 
@@ -144,7 +165,7 @@ const App: React.FC = () => {
 
     } catch (e) {
         console.error("Error adding post: ", e);
-        alert("Có lỗi khi đăng bài, vui lòng thử lại.");
+        alert("Có lỗi khi đăng bài, vui lòng kiểm tra kết nối mạng.");
     }
   };
 
@@ -160,13 +181,13 @@ const App: React.FC = () => {
         const isLiked = post.likedBy?.includes(user.id);
 
         if (isLiked) {
-            // Unlike
+            // Unlike (Bỏ thích)
             await updateDoc(postRef, {
                 likes: increment(-1),
                 likedBy: post.likedBy?.filter(id => id !== user.id)
             });
         } else {
-            // Like
+            // Like (Thích)
             await updateDoc(postRef, {
                 likes: increment(1),
                 likedBy: arrayUnion(user.id)
@@ -190,7 +211,8 @@ const App: React.FC = () => {
             userId: user.id,
             user: user,
             content: content,
-            createdAt: new Date().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+            createdAt: new Date().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            likedBy: []
         };
 
         const postRef = doc(db, "posts", postId);
@@ -205,6 +227,40 @@ const App: React.FC = () => {
 
       } catch (e) {
           console.error("Error comment: ", e);
+      }
+  };
+
+  const handleLikeComment = async (postId: string, commentId: string) => {
+      if (!requireAuth()) return;
+      if (!user) return;
+
+      try {
+          const post = posts.find(p => p.id === postId);
+          if (!post) return;
+
+          // Vì comment nằm trong mảng, ta cần copy mảng, sửa item, và lưu đè lại
+          // (Firestore không hỗ trợ update 1 item trong mảng dễ dàng nếu không biết chính xác object)
+          const updatedComments = post.comments.map(c => {
+              if (c.id === commentId) {
+                  const currentLikes = c.likedBy || [];
+                  const isLiked = currentLikes.includes(user.id);
+                  
+                  return {
+                      ...c,
+                      likedBy: isLiked 
+                        ? currentLikes.filter(id => id !== user.id) 
+                        : [...currentLikes, user.id]
+                  };
+              }
+              return c;
+          });
+
+          const postRef = doc(db, "posts", postId);
+          await updateDoc(postRef, {
+              comments: updatedComments
+          });
+      } catch (e) {
+          console.error("Error like comment: ", e);
       }
   };
 
@@ -305,6 +361,7 @@ const App: React.FC = () => {
                             currentUser={user}
                             onLike={handleLike}
                             onComment={handleComment}
+                            onLikeComment={handleLikeComment}
                         />
                     ))
                 ) : (

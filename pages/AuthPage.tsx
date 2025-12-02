@@ -4,7 +4,7 @@ import { User } from '../types';
 import { X, AlertCircle } from 'lucide-react';
 import { auth, db } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, DocumentSnapshot } from 'firebase/firestore';
 import { POINTS, getBadgeFromPoints } from '../services/userService';
 
 interface AuthPageProps {
@@ -20,6 +20,16 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onCancel }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Hàm helper để timeout promise nếu chạy quá lâu (5 giây)
+  const withTimeout = <T,>(promise: Promise<T>, ms: number = 5000): Promise<T> => {
+      return Promise.race([
+          promise,
+          new Promise<T>((_, reject) => 
+              setTimeout(() => reject(new Error("Timeout")), ms)
+          )
+      ]);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -31,37 +41,49 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onCancel }) => {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const firebaseUser = userCredential.user;
             
-            // Lấy thông tin user từ Firestore để có điểm số & badge
-            const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-            
-            if (userDoc.exists()) {
-                const userData = userDoc.data() as User;
-                onLogin(userData);
-            } else {
-                // Fallback nếu không tìm thấy doc (ít khi xảy ra)
-                onLogin({
+            let userData: User;
+
+            try {
+                // Thử lấy profile user từ Firestore với timeout
+                const userDoc = await withTimeout<DocumentSnapshot>(getDoc(doc(db, "users", firebaseUser.uid)), 3000);
+                
+                if (userDoc.exists()) {
+                    userData = userDoc.data() as User;
+                } else {
+                    throw new Error("User doc not found");
+                }
+            } catch (err) {
+                console.warn("Không tải được profile chi tiết, dùng thông tin cơ bản:", err);
+                // Fallback nếu lỗi hoặc timeout
+                userData = {
                     id: firebaseUser.uid,
                     name: firebaseUser.displayName || 'User',
                     email: firebaseUser.email || '',
-                    avatar: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName}&background=random`,
+                    avatar: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName || 'U'}&background=random`,
                     badge: 'Thành viên',
                     badgeType: 'new',
                     points: 0
-                });
+                };
             }
+            onLogin(userData);
 
         } else {
             // --- ĐĂNG KÝ ---
+            // 1. Tạo tài khoản Auth (Quan trọng nhất)
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const firebaseUser = userCredential.user;
 
-            // Cập nhật tên hiển thị
-            await updateProfile(firebaseUser, {
-                displayName: name,
-                photoURL: `https://ui-avatars.com/api/?name=${name}&background=random`
-            });
+            // 2. Cập nhật tên hiển thị (Auth Profile)
+            try {
+                await updateProfile(firebaseUser, {
+                    displayName: name,
+                    photoURL: `https://ui-avatars.com/api/?name=${name}&background=random`
+                });
+            } catch (e) {
+                console.warn("Lỗi update profile auth:", e);
+            }
 
-            // Tạo hồ sơ người dùng trong Firestore
+            // 3. Tạo hồ sơ người dùng trong Firestore (Dễ bị treo nếu chưa config DB)
             const initialPoints = POINTS.REGISTER;
             const { badge, type } = getBadgeFromPoints(initialPoints);
 
@@ -75,17 +97,26 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onCancel }) => {
                 points: initialPoints
             };
 
-            await setDoc(doc(db, "users", firebaseUser.uid), newUser);
+            try {
+                // Thêm timeout cho việc tạo doc, nếu Firestore chưa bật thì sẽ không treo mãi
+                await withTimeout(setDoc(doc(db, "users", firebaseUser.uid), newUser), 4000);
+            } catch (firestoreErr) {
+                console.error("Lỗi tạo user profile trên Firestore (Có thể do chưa bật Database):", firestoreErr);
+                // Vẫn cho đăng nhập thành công dù lỗi lưu DB, App.tsx sẽ tự handle fallback
+                // Thông báo nhẹ cho người dùng nếu cần thiết, hoặc bỏ qua để trải nghiệm mượt
+            }
             
             onLogin(newUser);
         }
     } catch (err: any) {
-        console.error(err);
-        let msg = "Đã có lỗi xảy ra.";
+        console.error("Auth Error:", err);
+        let msg = "Đã có lỗi xảy ra. Vui lòng thử lại.";
         if (err.code === 'auth/email-already-in-use') msg = "Email này đã được sử dụng.";
         if (err.code === 'auth/wrong-password') msg = "Sai mật khẩu.";
         if (err.code === 'auth/user-not-found') msg = "Tài khoản không tồn tại.";
         if (err.code === 'auth/weak-password') msg = "Mật khẩu quá yếu (cần ít nhất 6 ký tự).";
+        if (err.code === 'auth/network-request-failed') msg = "Lỗi kết nối mạng.";
+        if (err.code === 'auth/operation-not-allowed') msg = "Chức năng đăng nhập này chưa được bật trên Firebase.";
         setError(msg);
     } finally {
         setLoading(false);
@@ -177,7 +208,15 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onCancel }) => {
                     </div>
 
                     <Button type="submit" className="w-full py-3 mt-4 text-lg" disabled={loading}>
-                        {loading ? 'Đang xử lý...' : (isLogin ? 'Đăng nhập' : 'Đăng ký nhận +50 điểm')}
+                        {loading ? (
+                            <span className="flex items-center justify-center">
+                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Đang xử lý...
+                            </span>
+                        ) : (isLogin ? 'Đăng nhập' : 'Đăng ký nhận +50 điểm')}
                     </Button>
                 </form>
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Post, User } from '../types';
+import { Post, User, Comment } from '../types';
 import { MessageCircle, Heart, Share2, Download, ExternalLink, Send, Shield, Zap, Award, Crown, Leaf } from 'lucide-react';
 import Button from './Button';
 
@@ -8,6 +8,7 @@ interface PostCardProps {
   currentUser: User | null;
   onLike: (postId: string) => void;
   onComment: (postId: string, content: string) => void;
+  onLikeComment?: (postId: string, commentId: string) => void;
 }
 
 const getEmbedUrl = (url: string): string | null => {
@@ -35,7 +36,7 @@ const UserBadge = ({ user }: { user: User }) => {
             break;
         case 'expert':
             styles = "bg-blue-50 text-blue-600 border-blue-100";
-            Icon = Zap; // Or Stethoscope if available, Zap for efficiency
+            Icon = Zap;
             break;
         case 'vip':
             styles = "bg-purple-50 text-purple-600 border-purple-100";
@@ -50,7 +51,6 @@ const UserBadge = ({ user }: { user: User }) => {
             Icon = Leaf;
             break;
         default:
-            // Fallback for custom badges without type
             break;
     }
 
@@ -62,7 +62,7 @@ const UserBadge = ({ user }: { user: User }) => {
     );
 };
 
-const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onComment }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onComment, onLikeComment }) => {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
 
@@ -76,12 +76,28 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
       setCommentText('');
   };
 
-  const handleInteract = (action: 'like' | 'comment') => {
-      if (action === 'like') {
-          onLike(post.id);
-      } else {
-          setShowComments(!showComments);
-      }
+  const handleShare = async () => {
+    const shareData = {
+        title: post.title || 'Bài viết trên Mom & Kids',
+        text: post.content.substring(0, 100),
+        url: window.location.href // Trong thực tế nên là link chi tiết bài viết
+    };
+
+    try {
+        if (navigator.share) {
+            await navigator.share(shareData);
+        } else {
+            // Fallback to Facebook Share
+            const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(post.title || '')}`;
+            window.open(fbShareUrl, '_blank', 'width=600,height=400');
+        }
+    } catch (err) {
+        console.log('Error sharing:', err);
+    }
+  };
+
+  const isCommentLiked = (comment: Comment) => {
+      return currentUser && comment.likedBy?.includes(currentUser.id);
   };
 
   return (
@@ -181,8 +197,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
         </div>
         <div className="flex items-center space-x-4 text-gray-500 text-sm">
             <button 
-                onClick={() => handleInteract('like')}
+                onClick={() => onLike(post.id)}
                 className={`flex items-center space-x-1.5 transition-colors group ${post.isLiked ? 'text-pink-500' : 'hover:text-pink-500'}`}
+                title={post.isLiked ? "Bỏ thích" : "Thích"}
             >
                 <div className={`p-1.5 rounded-full ${post.isLiked ? 'bg-pink-50' : 'group-hover:bg-pink-50'}`}>
                    <Heart size={18} fill={post.isLiked ? "currentColor" : "none"} className={post.isLiked ? "animate-heartbeat" : ""} />
@@ -190,15 +207,20 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
                 <span className="font-medium">{post.likes}</span>
             </button>
             <button 
-                onClick={() => handleInteract('comment')}
+                onClick={() => setShowComments(!showComments)}
                 className="flex items-center space-x-1.5 hover:text-blue-500 transition-colors group"
+                title="Bình luận"
             >
                 <div className="p-1.5 rounded-full group-hover:bg-blue-50">
                     <MessageCircle size={18} />
                 </div>
                 <span className="font-medium">{post.comments.length}</span>
             </button>
-             <button className="flex items-center space-x-1.5 hover:text-green-500 transition-colors group">
+             <button 
+                onClick={handleShare}
+                className="flex items-center space-x-1.5 hover:text-green-500 transition-colors group"
+                title="Chia sẻ"
+             >
                 <div className="p-1.5 rounded-full group-hover:bg-green-50">
                     <Share2 size={18} />
                 </div>
@@ -227,7 +249,20 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
                                   </div>
                                   <div className="flex items-center mt-1 ml-2 space-x-3">
                                       <span className="text-gray-400 text-[10px]">{comment.createdAt}</span>
-                                      <button className="text-gray-400 text-[10px] font-bold hover:text-gray-600">Thích</button>
+                                      
+                                      {/* Like Comment Button */}
+                                      <button 
+                                        onClick={() => onLikeComment && onLikeComment(post.id, comment.id)}
+                                        className={`text-[10px] font-bold flex items-center space-x-1 transition-colors ${isCommentLiked(comment) ? 'text-pink-500' : 'text-gray-400 hover:text-pink-500'}`}
+                                      >
+                                          {isCommentLiked(comment) ? 'Đã thích' : 'Thích'}
+                                          {(comment.likedBy?.length || 0) > 0 && (
+                                              <span className="ml-0.5 flex items-center">
+                                                  <Heart size={8} fill="currentColor" className="ml-1"/> {comment.likedBy?.length}
+                                              </span>
+                                          )}
+                                      </button>
+                                      
                                       <button className="text-gray-400 text-[10px] font-bold hover:text-gray-600">Phản hồi</button>
                                   </div>
                               </div>

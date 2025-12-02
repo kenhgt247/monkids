@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Post } from '../types';
-import { Image, Video, FileText, Smile, Send, HelpCircle, PenTool } from 'lucide-react';
+import { Image, Video, FileText, Smile, Send, HelpCircle, PenTool, X } from 'lucide-react';
 import Button from './Button';
 
 interface CreatePostProps {
@@ -8,13 +8,17 @@ interface CreatePostProps {
   onPost: (content: string, title?: string, imageUrl?: string, videoUrl?: string, category?: Post['category']) => void;
 }
 
-type PostMode = 'status' | 'qna' | 'blog' | 'media';
+type PostMode = 'status' | 'qna' | 'blog';
+
+const EMOJIS = ['😊', '😂', '🥰', '😭', '😡', '👍', '❤️', '🎉', '🍎', '🍼', '🧸', '💊'];
 
 const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
   const [mode, setMode] = useState<PostMode>('status');
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
+  const [showMediaInput, setShowMediaInput] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleSubmit = () => {
@@ -42,6 +46,8 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     setContent('');
     setTitle('');
     setMediaUrl('');
+    setShowMediaInput(false);
+    setShowEmoji(false);
     setMode('status');
     setIsExpanded(false);
   };
@@ -49,6 +55,10 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
   const switchMode = (newMode: PostMode) => {
     setMode(newMode);
     setIsExpanded(true);
+  };
+
+  const addEmoji = (emoji: string) => {
+      setContent(prev => prev + emoji);
   };
 
   const getPlaceholder = () => {
@@ -64,7 +74,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6 overflow-visible relative z-10">
       {/* Top Tabs */}
       <div className="flex border-b border-gray-100 bg-gray-50/50">
           <button 
@@ -124,18 +134,57 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                             autoFocus
                         />
 
-                        {/* Media Input (Show if typed or if button clicked) */}
-                        <div className={`transition-all overflow-hidden ${mediaUrl || mode === 'media' ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
-                            <div className="bg-gray-50 p-2 rounded-xl border border-dashed border-gray-300 flex items-center">
-                                <input 
-                                    type="text"
-                                    placeholder="Dán link ảnh hoặc video (YouTube, TikTok)..."
-                                    className="flex-1 bg-transparent text-sm outline-none"
-                                    value={mediaUrl}
-                                    onChange={(e) => setMediaUrl(e.target.value)}
-                                />
+                        {/* Emoji Picker */}
+                        {showEmoji && (
+                            <div className="flex flex-wrap gap-2 p-2 bg-gray-50 rounded-xl border border-gray-100 animate-fade-in">
+                                {EMOJIS.map(e => (
+                                    <button 
+                                        key={e} 
+                                        onClick={() => addEmoji(e)}
+                                        className="text-xl hover:bg-gray-200 p-1.5 rounded-lg transition-colors"
+                                    >
+                                        {e}
+                                    </button>
+                                ))}
                             </div>
-                        </div>
+                        )}
+
+                        {/* Media Input */}
+                        {(showMediaInput || mediaUrl) && (
+                            <div className="bg-gray-50 p-3 rounded-xl border border-dashed border-gray-300 relative animate-fade-in">
+                                {mediaUrl ? (
+                                    <div className="relative">
+                                         <div className="text-xs text-gray-500 mb-1 font-semibold truncate">{mediaUrl}</div>
+                                         {/* Simple Preview */}
+                                         {(mediaUrl.match(/\.(jpeg|jpg|gif|png)$/) != null || mediaUrl.includes('picsum')) ? (
+                                             <img src={mediaUrl} className="h-32 rounded-lg object-cover border border-gray-200" alt="Preview"/>
+                                         ) : (
+                                             <div className="h-20 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 text-sm">
+                                                 <Video size={20} className="mr-2"/> Đã đính kèm link video
+                                             </div>
+                                         )}
+                                         <button 
+                                            onClick={() => setMediaUrl('')}
+                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm"
+                                         >
+                                             <X size={12} />
+                                         </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center">
+                                        <input 
+                                            type="text"
+                                            placeholder="Dán đường link ảnh hoặc video (YouTube, TikTok)..."
+                                            className="flex-1 bg-transparent text-sm outline-none"
+                                            value={mediaUrl}
+                                            onChange={(e) => setMediaUrl(e.target.value)}
+                                            autoFocus
+                                        />
+                                        <button onClick={() => setShowMediaInput(false)} className="text-gray-400 hover:text-gray-600"><X size={16}/></button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -144,14 +193,17 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
         <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-50">
             <div className="flex space-x-1">
                  <button 
-                    onClick={() => setMode('media')}
-                    className="p-2 rounded-full hover:bg-green-50 text-green-600 transition-colors flex items-center space-x-1"
+                    onClick={() => setShowMediaInput(!showMediaInput)}
+                    className={`p-2 rounded-full transition-colors flex items-center space-x-1 ${showMediaInput ? 'bg-green-100 text-green-600' : 'hover:bg-green-50 text-green-600'}`}
                     title="Ảnh/Video"
                 >
                     <Image size={20} />
                     <span className="text-xs font-medium hidden sm:inline">Ảnh/Video</span>
                  </button>
-                 <button className="p-2 rounded-full hover:bg-yellow-50 text-yellow-500 transition-colors flex items-center space-x-1">
+                 <button 
+                    onClick={() => setShowEmoji(!showEmoji)}
+                    className={`p-2 rounded-full transition-colors flex items-center space-x-1 ${showEmoji ? 'bg-yellow-100 text-yellow-600' : 'hover:bg-yellow-50 text-yellow-500'}`}
+                >
                     <Smile size={20} />
                     <span className="text-xs font-medium hidden sm:inline">Cảm xúc</span>
                  </button>
@@ -159,7 +211,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
             
             {isExpanded ? (
                  <div className="flex space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => { setIsExpanded(false); setMode('status'); }}>Hủy</Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setIsExpanded(false); setMode('status'); setShowMediaInput(false); }}>Hủy</Button>
                     <Button size="sm" onClick={handleSubmit} disabled={!content.trim() && !title.trim() && !mediaUrl.trim()}>
                         <Send size={16} className="mr-2" /> 
                         {mode === 'qna' ? 'Gửi câu hỏi' : 'Đăng bài'}

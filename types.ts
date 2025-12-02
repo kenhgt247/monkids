@@ -14,6 +14,7 @@ export interface Comment {
   user: User;
   content: string;
   createdAt: string;
+  likedBy?: string[]; // Danh sách ID người đã like comment
 }
 
 export interface Post {
