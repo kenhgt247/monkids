@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ViewState, Post, User, Comment, Community } from './types';
 import { mockGames } from './services/mockData';
@@ -220,7 +221,7 @@ const App: React.FC = () => {
 
   // --- ACTIONS WITH FIREBASE ---
 
-  const handleCreatePost = async (content: string, title?: string, imageUrl?: string, videoUrl?: string, audioUrl?: string, category: Post['category'] = 'Status') => {
+  const handleCreatePost = async (content: string, title?: string, imageUrl?: string, videoUrl?: string, audioUrl?: string, fileUrl?: string, category: Post['category'] = 'Status') => {
     if (!user) return;
 
     try {
@@ -230,7 +231,7 @@ const App: React.FC = () => {
             title: title || '',
             content: content,
             category: category,
-            tags: category === 'QnA' ? ['Hỏi đáp'] : ['Chia sẻ'],
+            tags: category === 'QnA' ? ['Hỏi đáp'] : category === 'Document' ? ['Tài liệu'] : ['Chia sẻ'],
             likes: 0,
             likedBy: [],
             comments: [],
@@ -238,7 +239,8 @@ const App: React.FC = () => {
             timestamp: Date.now(),
             imageUrl: imageUrl || '',
             videoUrl: videoUrl || '',
-            audioUrl: audioUrl || ''
+            audioUrl: audioUrl || '',
+            fileUrl: fileUrl || ''
         };
 
         // Nếu đang trong cộng đồng, gắn ID và Tên cộng đồng vào bài viết
@@ -403,16 +405,30 @@ const App: React.FC = () => {
 
   const renderFeed = (filterCategory?: string) => {
       let filteredPosts = posts;
+      
+      // Filter by Category
       if (filterCategory) {
           filteredPosts = posts.filter(p => p.category === filterCategory);
+      }
+
+      // Filter by Search Term (Client side for now)
+      if (searchTerm.trim()) {
+          const term = searchTerm.toLowerCase();
+          filteredPosts = filteredPosts.filter(p => 
+              p.content.toLowerCase().includes(term) || 
+              p.title?.toLowerCase().includes(term) ||
+              p.user.name.toLowerCase().includes(term) ||
+              p.tags.some(tag => tag.toLowerCase().includes(term))
+          );
       }
       
       return (
         <div className="w-full animate-fade-in">
-            {currentView === ViewState.HOME && renderStories()}
+            {/* Only show stories on HOME and if no search */}
+            {currentView === ViewState.HOME && !searchTerm && renderStories()}
             
-            {/* Show Create Post if User is Logged In */}
-            {user && (
+            {/* Show Create Post if User is Logged In and no search */}
+            {user && !searchTerm && (
                 <CreatePost currentUser={user} onPost={handleCreatePost} />
             )}
             
@@ -435,7 +451,15 @@ const App: React.FC = () => {
                     ))
                 ) : (
                     <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-300">
-                        <p className="text-gray-500">Chưa có bài viết nào ở đây. Hãy chia sẻ ngay!</p>
+                        {searchTerm ? (
+                            <>
+                                <Search size={40} className="mx-auto text-gray-300 mb-3" />
+                                <p className="text-gray-500 font-bold">Không tìm thấy kết quả</p>
+                                <p className="text-gray-400 text-sm">Thử tìm với từ khóa khác xem sao mẹ nhé!</p>
+                            </>
+                        ) : (
+                            <p className="text-gray-500">Chưa có bài viết nào ở đây. Hãy chia sẻ ngay!</p>
+                        )}
                     </div>
                 )}
             </div>
@@ -572,6 +596,7 @@ const App: React.FC = () => {
         setCurrentView(view);
         setIsMobileMenuOpen(false);
         setActiveCommunity(null); // Reset active community when switching main tabs
+        setSearchTerm(''); // Clear search when changing view
       }}
       className={`flex items-center space-x-3 w-full p-3.5 rounded-2xl transition-all ${
         currentView === view 

@@ -1,16 +1,16 @@
 
 import React, { useState, useRef } from 'react';
 import { User, Post } from '../types';
-import { Image, Video, FileText, Smile, Send, HelpCircle, PenTool, X, Music, Paperclip, Loader2, AlertCircle } from 'lucide-react';
+import { Image, Video, FileText, Smile, Send, HelpCircle, PenTool, X, Music, Paperclip, Loader2, AlertCircle, File } from 'lucide-react';
 import Button from './Button';
 import { uploadFileToStorage } from '../services/uploadService';
 
 interface CreatePostProps {
   currentUser: User;
-  onPost: (content: string, title?: string, imageUrl?: string, videoUrl?: string, audioUrl?: string, category?: Post['category']) => void;
+  onPost: (content: string, title?: string, imageUrl?: string, videoUrl?: string, audioUrl?: string, fileUrl?: string, category?: Post['category']) => void;
 }
 
-type PostMode = 'status' | 'qna' | 'blog';
+type PostMode = 'status' | 'qna' | 'blog' | 'document';
 
 const EMOJIS = ['😊', '😂', '🥰', '😭', '😡', '👍', '❤️', '🎉', '🍎', '🍼', '🧸', '💊'];
 
@@ -21,7 +21,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
   
   // State quản lý file upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileType, setFileType] = useState<'image' | 'video' | 'audio' | null>(null);
+  const [fileType, setFileType] = useState<'image' | 'video' | 'audio' | 'document' | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -33,8 +33,9 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'audio') => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'audio' | 'document') => {
     setUploadError(null);
     if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
@@ -47,8 +48,15 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
 
         setSelectedFile(file);
         setFileType(type);
+        // Với document, previewUrl không cần thiết phải là blob image, nhưng ta giữ để logic thống nhất hoặc hiển thị icon
         setPreviewUrl(URL.createObjectURL(file));
         setIsExpanded(true);
+        
+        // Nếu chọn tài liệu, tự động chuyển sang chế độ Document hoặc Blog nếu đang ở Status
+        if (type === 'document' && mode === 'status') {
+             // Có thể giữ nguyên status hoặc chuyển mode tùy logic UX.
+             // Ở đây ta giữ nguyên, nhưng có thể highlight
+        }
     }
   };
 
@@ -60,10 +68,11 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
       if (imageInputRef.current) imageInputRef.current.value = '';
       if (videoInputRef.current) videoInputRef.current.value = '';
       if (audioInputRef.current) audioInputRef.current.value = '';
+      if (docInputRef.current) docInputRef.current.value = '';
   };
 
   const handleSubmit = async () => {
-    if (!content.trim() && !selectedFile) return;
+    if (!content.trim() && !selectedFile && !title.trim()) return;
     
     setIsUploading(true);
     setUploadError(null);
@@ -72,20 +81,26 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     let finalImageUrl = undefined;
     let finalVideoUrl = undefined;
     let finalAudioUrl = undefined;
+    let finalFileUrl = undefined;
 
     if (mode === 'blog') category = 'Blog';
     if (mode === 'qna') category = 'QnA';
+    // Nếu up tài liệu mà đang ở mode status/blog, có thể tự nhận diện là Document nếu muốn
+    if (fileType === 'document') category = 'Document'; 
     
     try {
         // Xử lý upload file nếu có
         if (selectedFile && fileType) {
-            const downloadUrl = await uploadFileToStorage(selectedFile, 'posts');
+            const folder = fileType === 'document' ? 'documents' : 'posts';
+            const downloadUrl = await uploadFileToStorage(selectedFile, folder);
+            
             if (fileType === 'image') finalImageUrl = downloadUrl;
             if (fileType === 'video') finalVideoUrl = downloadUrl;
             if (fileType === 'audio') finalAudioUrl = downloadUrl;
+            if (fileType === 'document') finalFileUrl = downloadUrl;
         }
 
-        onPost(content, title, finalImageUrl, finalVideoUrl, finalAudioUrl, category);
+        onPost(content, title, finalImageUrl, finalVideoUrl, finalAudioUrl, finalFileUrl, category);
         
         // Reset form
         setContent('');
@@ -98,17 +113,14 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
         console.error("Upload failed:", error);
         let msg = "Có lỗi xảy ra khi tải file.";
         
-        // Bắt các lỗi phổ biến của Firebase Storage
         if (error.code === 'storage/unauthorized') {
-            msg = "Lỗi quyền truy cập: Bạn chưa cấu hình 'Rules' trong Firebase Storage (hoặc chưa đăng nhập).";
+            msg = "Lỗi quyền truy cập: Bạn chưa cấu hình 'Rules' trong Firebase Storage.";
         } else if (error.code === 'storage/canceled') {
             msg = "Đã hủy tải lên.";
-        } else if (error.code === 'storage/unknown') {
-            msg = "Lỗi không xác định. Vui lòng kiểm tra lại cấu hình Firebase.";
         }
 
         setUploadError(msg);
-        alert(msg); // Hiển thị popup để người dùng chắc chắn thấy
+        alert(msg);
     } finally {
         setIsUploading(false);
     }
@@ -132,7 +144,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
   const getTitlePlaceholder = () => {
       if (mode === 'qna') return "Tiêu đề câu hỏi (Ví dụ: Bé bị ho phải làm sao?)";
       if (mode === 'blog') return "Tiêu đề bài chia sẻ";
-      return "";
+      return "Tiêu đề (tùy chọn)";
   }
 
   return (
@@ -141,6 +153,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
       <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={(e) => handleFileSelect(e, 'image')} />
       <input type="file" ref={videoInputRef} accept="video/mp4,video/quicktime" className="hidden" onChange={(e) => handleFileSelect(e, 'video')} />
       <input type="file" ref={audioInputRef} accept="audio/mp3,audio/mpeg,audio/wav" className="hidden" onChange={(e) => handleFileSelect(e, 'audio')} />
+      <input type="file" ref={docInputRef} accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={(e) => handleFileSelect(e, 'document')} />
 
       {/* Top Tabs */}
       <div className="flex border-b border-gray-100 bg-gray-50/50">
@@ -190,7 +203,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
 
                 {isExpanded && (
                     <div className="animate-fade-in space-y-3">
-                        {(mode === 'qna' || mode === 'blog') && (
+                        {(mode === 'qna' || mode === 'blog' || fileType === 'document') && (
                             <input 
                                 type="text"
                                 placeholder={getTitlePlaceholder()}
@@ -253,6 +266,21 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                                         <audio src={previewUrl} controls className="ml-2 h-8 w-40" />
                                     </div>
                                 )}
+
+                                {fileType === 'document' && (
+                                    <div className="flex items-center p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
+                                        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mr-3">
+                                            <FileText size={20} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-sm text-gray-800 truncate">{selectedFile.name}</p>
+                                            <p className="text-xs text-gray-500">
+                                                {(selectedFile.size / 1024).toFixed(0)} KB • 
+                                                <span className="uppercase ml-1">{selectedFile.name.split('.').pop()}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -295,6 +323,17 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                     <span className="text-xs font-medium hidden sm:inline">MP3</span>
                  </button>
 
+                 {/* Document Upload Button */}
+                 <button 
+                    onClick={() => docInputRef.current?.click()}
+                    className="p-2 rounded-full hover:bg-blue-50 text-blue-600 transition-colors flex items-center space-x-1"
+                    title="Tải tài liệu (PDF, Word)"
+                    disabled={isUploading}
+                >
+                    <Paperclip size={20} />
+                    <span className="text-xs font-medium hidden sm:inline">File</span>
+                 </button>
+
                  {/* Emoji Button */}
                  <button 
                     onClick={() => setShowEmoji(!showEmoji)}
@@ -302,7 +341,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                     disabled={isUploading}
                 >
                     <Smile size={20} />
-                    <span className="text-xs font-medium hidden sm:inline">Cảm xúc</span>
+                    <span className="text-xs font-medium hidden sm:inline">Emoji</span>
                  </button>
             </div>
             
@@ -312,7 +351,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                     <Button size="sm" onClick={handleSubmit} disabled={(!content.trim() && !title.trim() && !selectedFile) || isUploading}>
                         {isUploading ? (
                             <>
-                                <Loader2 size={16} className="mr-2 animate-spin" /> Đang tải lên...
+                                <Loader2 size={16} className="mr-2 animate-spin" /> Đang tải...
                             </>
                         ) : (
                             <>

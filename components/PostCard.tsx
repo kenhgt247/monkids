@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { Post, User, Comment } from '../types';
-import { MessageCircle, Heart, Share2, Download, ExternalLink, Send, Shield, Zap, Award, Crown, Leaf, Music, ChevronRight } from 'lucide-react';
+import { MessageCircle, Heart, Share2, Download, ExternalLink, Send, Shield, Zap, Award, Crown, Leaf, Music, ChevronRight, FileText } from 'lucide-react';
 import Button from './Button';
 
 interface PostCardProps {
@@ -102,6 +103,18 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
       return currentUser && comment.likedBy?.includes(currentUser.id);
   };
 
+  // Helper để hiển thị tên file hoặc loại file
+  const getFileDisplay = () => {
+      if (!post.fileUrl) return { name: 'Tài liệu đính kèm', ext: 'FILE' };
+      // Thử đoán định dạng
+      const urlLower = post.fileUrl.toLowerCase();
+      if (urlLower.includes('.pdf')) return { name: 'Tài liệu PDF', ext: 'PDF' };
+      if (urlLower.includes('.doc')) return { name: 'Tài liệu Word', ext: 'DOC' };
+      if (urlLower.includes('.xls')) return { name: 'Bảng tính Excel', ext: 'XLS' };
+      return { name: 'Tài liệu đính kèm', ext: 'FILE' };
+  };
+  const fileInfo = getFileDisplay();
+
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow mb-4">
       {/* Header */}
@@ -199,18 +212,25 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
       )}
 
       {/* Document Attachment */}
-      {post.category === 'Document' && (
-         <div className="mb-4 p-3 bg-secondary-50 rounded-lg flex items-center justify-between border border-secondary-100 group cursor-pointer hover:bg-secondary-100 transition-colors">
-            <div className="flex items-center">
-                <div className="bg-white p-2 rounded-lg text-secondary-600 mr-3 shadow-sm group-hover:scale-110 transition-transform">
-                    <Download size={20} />
+      {(post.category === 'Document' || post.fileUrl) && (
+         <div 
+            onClick={() => post.fileUrl && window.open(post.fileUrl, '_blank')}
+            className="mb-4 p-3 bg-secondary-50 rounded-lg flex items-center justify-between border border-secondary-100 group cursor-pointer hover:bg-secondary-100 transition-colors"
+         >
+            <div className="flex items-center overflow-hidden">
+                <div className="bg-white p-2.5 rounded-lg text-secondary-600 mr-3 shadow-sm group-hover:scale-110 transition-transform shrink-0">
+                    <FileText size={24} />
                 </div>
-                <div>
-                    <p className="font-bold text-secondary-800 text-sm">Tài liệu đính kèm</p>
-                    <p className="text-secondary-500 text-xs">PDF • 2.4 MB</p>
+                <div className="min-w-0">
+                    <p className="font-bold text-secondary-800 text-sm truncate pr-2">{fileInfo.name}</p>
+                    <p className="text-secondary-500 text-xs uppercase font-bold">{fileInfo.ext}</p>
                 </div>
             </div>
-            <button className="text-sm font-bold text-secondary-600 hover:text-secondary-700 bg-white px-3 py-1.5 rounded-full shadow-sm">Tải về</button>
+            {post.fileUrl && (
+                <button className="shrink-0 text-sm font-bold text-secondary-600 hover:text-secondary-700 bg-white px-3 py-1.5 rounded-full shadow-sm flex items-center">
+                    <Download size={14} className="mr-1" /> Tải về
+                </button>
+            )}
          </div>
       )}
 
