@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ViewState, Post, User, Comment, Community, Notification } from './types';
+import { ViewState, Post, User, Comment, Community, Notification, Story } from './types';
 import { mockGames } from './services/mockData';
 import PostCard from './components/PostCard';
 import MemoryGame from './pages/MemoryGame';
@@ -9,6 +9,8 @@ import CreatePost from './components/CreatePost';
 import AuthPage from './pages/AuthPage';
 import Button from './components/Button';
 import CommunityCard from './components/CommunityCard';
+import CreateStoryModal from './components/CreateStoryModal';
+import StoryViewer from './components/StoryViewer';
 import { 
   Home, MessageCircle, BookOpen, FileText, Gamepad2, Search, Menu, X, Bell, Sparkles, Plus, LogOut, LogIn, Loader2, Star, Users, ArrowLeft, Heart, Shield, Award, MapPin, Layers, HelpCircle, PenTool, UserPlus, UserCheck
 } from 'lucide-react';
@@ -28,14 +30,6 @@ const DEFAULT_COMMUNITIES: Partial<Community>[] = [
     { id: 'com_andam', name: 'Ăn Dặm Không Nước Mắt', description: 'Chia sẻ thực đơn ăn dặm, phương pháp BLW, ăn dặm kiểu Nhật giúp bé ăn ngon.', coverUrl: 'https://picsum.photos/seed/andam_cover/800/300', avatarUrl: 'https://picsum.photos/seed/andam_ava/100/100', memberCount: 8400, tags: ['Dinh dưỡng', 'Nấu ăn'] },
     { id: 'com_giaoduc', name: 'Giáo Dục Sớm (EASY, Montessori)', description: 'Cùng nhau áp dụng các phương pháp giáo dục sớm để phát triển tư duy cho trẻ.', coverUrl: 'https://picsum.photos/seed/giaoduc_cover/800/300', avatarUrl: 'https://picsum.photos/seed/giaoduc_ava/100/100', memberCount: 5600, tags: ['Giáo dục', 'Kỹ năng'] },
     { id: 'com_mekun', name: 'Cộng Đồng Mẹ Kun', description: 'Hội các mẹ yêu thích sữa Kun và các hoạt động vui chơi năng động cho bé.', coverUrl: 'https://picsum.photos/seed/kun_cover/800/300', avatarUrl: 'https://picsum.photos/seed/kun_ava/100/100', memberCount: 3200, tags: ['Vui chơi', 'Sự kiện'] }
-];
-
-// --- MOCK STORIES FOR UI ---
-const STORIES = [
-    { id: 1, name: 'Mẹ Bé 1', img: 'https://picsum.photos/seed/story1/200/300', avatar: 'https://picsum.photos/seed/u5/50/50' },
-    { id: 2, name: 'Mẹ Bé 2', img: 'https://picsum.photos/seed/story2/200/300', avatar: 'https://picsum.photos/seed/u6/50/50' },
-    { id: 3, name: 'Mẹ Bé 3', img: 'https://picsum.photos/seed/story3/200/300', avatar: 'https://picsum.photos/seed/u7/50/50' },
-    { id: 4, name: 'Mẹ Bé 4', img: 'https://picsum.photos/seed/story4/200/300', avatar: 'https://picsum.photos/seed/u8/50/50' },
 ];
 
 const App: React.FC = () => {
@@ -63,6 +57,11 @@ const App: React.FC = () => {
   
   // Profile State
   const [viewProfileUser, setViewProfileUser] = useState<User | null>(null);
+
+  // Story States
+  const [stories, setStories] = useState<{ user: User, stories: Story[] }[]>([]);
+  const [isCreatingStory, setIsCreatingStory] = useState(false);
+  const [viewingStoryUserIdx, setViewingStoryUserIdx] = useState<number | null>(null);
 
   // Seed Communities
   useEffect(() => {
@@ -187,6 +186,54 @@ const App: React.FC = () => {
     });
     return () => unsubscribe();
   }, [user?.id, currentView, activeCommunity, viewProfileUser]); 
+
+  // --- STORIES LOGIC ---
+  useEffect(() => {
+    const q = query(collection(db, "stories"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const now = Date.now();
+        const rawStories: Story[] = [];
+        snapshot.forEach(doc => {
+            const data = doc.data() as Story;
+            if (data.expiresAt > now) {
+                rawStories.push({ id: doc.id, ...data });
+            }
+        });
+
+        // Group stories by user
+        const groupedMap = new Map<string, { user: User, stories: Story[] }>();
+        rawStories.forEach(s => {
+            if (!groupedMap.has(s.userId)) {
+                groupedMap.set(s.userId, { user: s.user, stories: [] });
+            }
+            groupedMap.get(s.userId)?.stories.push(s);
+        });
+
+        // Sort stories within user (oldest first for viewing)
+        groupedMap.forEach(group => {
+            group.stories.sort((a, b) => a.createdAt - b.createdAt);
+        });
+
+        setStories(Array.from(groupedMap.values()));
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleCreateStory = async (url: string, type: 'image' | 'video') => {
+      if (!user) return;
+      const now = Date.now();
+      const newStory: any = {
+          userId: user.id,
+          user: user,
+          mediaUrl: url,
+          mediaType: type,
+          createdAt: now,
+          expiresAt: now + (24 * 60 * 60 * 1000), // 24 hours
+          viewers: []
+      };
+      await addDoc(collection(db, "stories"), newStory);
+  };
+
 
   // --- ACTIONS ---
 
@@ -453,24 +500,34 @@ const App: React.FC = () => {
             {currentView === ViewState.HOME && !searchTerm && (
                 <div className="flex space-x-4 mb-8 overflow-x-auto pb-2 scrollbar-hide">
                     {/* Create Story */}
-                    <div className="flex-shrink-0 w-28 h-40 bg-sky-200 rounded-2xl relative flex flex-col items-center justify-center cursor-pointer overflow-hidden group shadow-sm">
+                    <div 
+                        className="flex-shrink-0 w-28 h-40 bg-sky-100 rounded-2xl relative flex flex-col items-center justify-center cursor-pointer overflow-hidden group shadow-sm hover:shadow-md transition-all border-2 border-dashed border-sky-300"
+                        onClick={() => { if(requireAuth()) setIsCreatingStory(true); }}
+                    >
                         {user ? (
-                             <img src={user.avatar} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"/>
-                        ) : <div className="absolute inset-0 bg-sky-200"></div>}
-                        <div className="absolute bottom-2 left-0 right-0 flex flex-col items-center">
-                            <div className="w-8 h-8 rounded-full bg-white text-primary-500 flex items-center justify-center mb-1 shadow-md group-hover:scale-110 transition-transform"><Plus size={20} strokeWidth={3} /></div>
-                            <span className="text-xs font-bold text-gray-800">Tạo tin</span>
+                             <img src={user.avatar} className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity blur-sm"/>
+                        ) : <div className="absolute inset-0 bg-sky-100"></div>}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+                            <div className="w-10 h-10 rounded-full bg-white text-primary-500 flex items-center justify-center mb-2 shadow-md group-hover:scale-110 transition-transform"><Plus size={24} strokeWidth={3} /></div>
+                            <span className="text-xs font-bold text-gray-800 bg-white/50 px-2 py-0.5 rounded-full">Tạo tin</span>
                         </div>
                     </div>
-                    {/* Mock Stories */}
-                    {STORIES.map(story => (
-                        <div key={story.id} className="flex-shrink-0 w-28 h-40 bg-gray-200 rounded-2xl relative overflow-hidden cursor-pointer group shadow-sm hover:shadow-md transition-shadow">
-                            <img src={story.img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                            <div className="absolute top-2 left-2 p-0.5 rounded-full border-2 border-primary-500">
-                                <img src={story.avatar} className="w-8 h-8 rounded-full border-2 border-white" />
+
+                    {/* Active Stories */}
+                    {stories.map((group, idx) => (
+                        <div 
+                            key={group.user.id} 
+                            className="flex-shrink-0 w-28 h-40 bg-gray-200 rounded-2xl relative overflow-hidden cursor-pointer group shadow-sm hover:shadow-md transition-shadow"
+                            onClick={() => setViewingStoryUserIdx(idx)}
+                        >
+                            <img src={group.stories[0].mediaType === 'image' ? group.stories[0].mediaUrl : group.user.avatar} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                            
+                            {/* Blue border for active story */}
+                            <div className="absolute top-2 left-2 p-0.5 rounded-full border-2 border-primary-500 bg-white">
+                                <img src={group.user.avatar} className="w-8 h-8 rounded-full" />
                             </div>
-                            <span className="absolute bottom-3 left-2 text-xs font-bold text-white shadow-black">{story.name}</span>
+                            <span className="absolute bottom-3 left-2 right-2 text-xs font-bold text-white shadow-black truncate">{group.user.name}</span>
                         </div>
                     ))}
                 </div>
@@ -489,6 +546,21 @@ const App: React.FC = () => {
             
             {user && !searchTerm && currentView === ViewState.HOME && feedFilter === 'All' && (
                 <CreatePost currentUser={user} onPost={handleCreatePost} />
+            )}
+
+            {/* Category Filter Pills */}
+            {!searchTerm && currentView === ViewState.HOME && (
+                <div className="flex space-x-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+                    {['All', 'Status', 'Blog', 'QnA', 'Document'].map(cat => (
+                         <button 
+                            key={cat}
+                            onClick={() => setFeedFilter(cat)}
+                            className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${feedFilter === cat ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'}`}
+                         >
+                            {cat === 'All' ? 'Tất cả' : cat === 'QnA' ? 'Hỏi đáp' : cat === 'Document' ? 'Tài liệu' : cat}
+                         </button>
+                    ))}
+                </div>
             )}
 
             <div className="space-y-6">
@@ -646,6 +718,22 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#fdfbf7] flex flex-col font-['Quicksand'] text-gray-800">
+      {/* --- STORY MODALS --- */}
+      {isCreatingStory && user && (
+          <CreateStoryModal 
+            currentUser={user} 
+            onClose={() => setIsCreatingStory(false)} 
+            onPost={handleCreateStory} 
+          />
+      )}
+      {viewingStoryUserIdx !== null && (
+          <StoryViewer 
+            groupedStories={stories} 
+            initialUserIndex={viewingStoryUserIdx} 
+            onClose={() => setViewingStoryUserIdx(null)} 
+          />
+      )}
+
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
         <div className="max-w-[1440px] mx-auto px-4 h-18 py-3 flex items-center justify-between">
             {/* UPDATED LOGO */}
@@ -759,7 +847,7 @@ const App: React.FC = () => {
                         <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm mb-4"><Sparkles className="text-white" size={20} /></div>
                         <h4 className="font-bold text-xl mb-2">Cần lời khuyên gấp?</h4>
                         <p className="text-indigo-50 text-sm mb-6 leading-relaxed opacity-90">Mẹ Thông Thái AI luôn sẵn sàng trả lời mọi thắc mắc của bạn 24/7 về sức khỏe, dinh dưỡng và nuôi dạy bé.</p>
-                        <Button onClick={() => setCurrentView(ViewState.AI_ASSISTANT)} className="bg-white text-indigo-600 hover:bg-indigo-50 w-full font-bold shadow-lg border-none h-12 rounded-full">Chat ngay</Button>
+                        <Button onClick={() => setCurrentView(ViewState.AI_ASSISTANT)} className="bg-white !text-indigo-600 hover:bg-indigo-50 w-full font-bold shadow-lg border-none h-12 rounded-full">Chat ngay</Button>
                     </div>
                 </div>
             )}

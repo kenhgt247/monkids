@@ -55,6 +55,18 @@ export interface Post {
   downloadCost?: number; // Số điểm cần để tải tài liệu (0 = miễn phí)
 }
 
+// --- STORY TYPE ---
+export interface Story {
+    id: string;
+    userId: string;
+    user: User;
+    mediaUrl: string;
+    mediaType: 'image' | 'video';
+    createdAt: number;
+    expiresAt: number; // Thời gian hết hạn (24h)
+    viewers?: string[];
+}
+
 export interface Game {
   id: string;
   title: string;
