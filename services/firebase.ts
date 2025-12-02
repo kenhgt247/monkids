@@ -3,7 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, isSupported } from "firebase/analytics";
 
 // Cấu hình Firebase của bạn
 const firebaseConfig = {
@@ -20,10 +20,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Khởi tạo các dịch vụ
-const auth = getAuth(app); // Xác thực người dùng (Đăng nhập)
-const db = getFirestore(app); // Cơ sở dữ liệu (Lưu bài viết, comment)
-const storage = getStorage(app); // Lưu trữ file (Ảnh, video)
-const analytics = getAnalytics(app); // Thống kê truy cập
-const googleProvider = new GoogleAuthProvider(); // Đăng nhập bằng Google
+const auth = getAuth(app); 
+const db = getFirestore(app);
+const storage = getStorage(app); 
+const googleProvider = new GoogleAuthProvider();
+
+// Xử lý Analytics an toàn (Tránh crash nếu trình duyệt chặn)
+let analytics;
+isSupported().then(yes => {
+  if (yes) {
+    analytics = getAnalytics(app);
+  }
+}).catch(err => {
+  console.warn("Firebase Analytics not supported in this environment", err);
+});
 
 export { auth, db, storage, analytics, googleProvider };

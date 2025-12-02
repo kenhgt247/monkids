@@ -9,9 +9,8 @@
     <style>
       body {
         font-family: 'Quicksand', sans-serif;
-        background-color: #fdfbf7; /* Soft cream background */
+        background-color: #fdfbf7;
       }
-      /* Custom scrollbar for webkit */
       ::-webkit-scrollbar {
         width: 8px;
       }
@@ -34,18 +33,18 @@
               primary: {
                 50: '#fff1f2',
                 100: '#ffe4e6',
-                500: '#f43f5e', // Rose
+                500: '#f43f5e',
                 600: '#e11d48',
               },
               secondary: {
                 50: '#f0fdf4',
                 100: '#dcfce7',
-                500: '#22c55e', // Green
+                500: '#22c55e',
                 600: '#16a34a',
               },
               accent: {
                 50: '#f0f9ff',
-                500: '#0ea5e9', // Sky
+                500: '#0ea5e9',
               }
             }
           }
@@ -55,17 +54,30 @@
   <script type="importmap">
 {
   "imports": {
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
   }
 }
 </script>
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+        <!-- Loading state để người dùng không thấy màn hình trắng tinh khi đang tải -->
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; color: #f43f5e; font-family: sans-serif;">
+            <div style="text-align: center;">
+                <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="width: 40px; height: 40px; margin: 0 auto 16px;">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p>Đang tải Mom & Kids...</p>
+            </div>
+        </div>
+    </div>
+    <!-- QUAN TRỌNG: Dòng này kết nối React vào trang web -->
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
