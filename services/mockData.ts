@@ -1,3 +1,4 @@
+
 import { Post, User, Game, Comment } from '../types';
 
 export const currentUserMock: User = {
@@ -82,7 +83,8 @@ export const mockPosts: Post[] = [
     likes: 89,
     comments: [],
     createdAt: '2 ngày trước',
-    isLiked: false
+    isLiked: false,
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' // Link PDF mẫu để test nút tải về
   }
 ];
 

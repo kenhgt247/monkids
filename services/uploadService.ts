@@ -1,3 +1,4 @@
+
 import { storage } from './firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -14,9 +15,9 @@ export const uploadFileToStorage = async (file: File, folder: string = 'uploads'
   const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
   const storageRef = ref(storage, `${folder}/${fileName}`);
 
-  // Tạo promise timeout để tránh treo app nếu mạng lag hoặc sai config
+  // Tăng timeout lên 120s (2 phút) để hỗ trợ file lớn
   const timeoutPromise = new Promise<never>((_, reject) => 
-    setTimeout(() => reject(new Error("Quá thời gian tải lên (20s). Vui lòng kiểm tra kết nối mạng hoặc cấu hình Firebase Storage Rules.")), 20000)
+    setTimeout(() => reject(new Error("Quá thời gian tải lên (120s). Vui lòng kiểm tra kết nối mạng.")), 120000)
   );
 
   try {

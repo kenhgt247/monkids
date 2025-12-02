@@ -1,23 +1,28 @@
 
 import React, { useState, useRef } from 'react';
 import { User, Post } from '../types';
-import { Image, Video, FileText, Smile, Send, HelpCircle, PenTool, X, Music, Paperclip, Loader2, AlertCircle, File } from 'lucide-react';
+import { Image, Video, FileText, Smile, Send, HelpCircle, PenTool, X, Music, Paperclip, Loader2, AlertCircle, Coins } from 'lucide-react';
 import Button from './Button';
 import { uploadFileToStorage } from '../services/uploadService';
 
 interface CreatePostProps {
   currentUser: User;
-  onPost: (content: string, title?: string, imageUrl?: string, videoUrl?: string, audioUrl?: string, fileUrl?: string, category?: Post['category']) => void;
+  communityName?: string; // Tên cộng đồng nếu đang đăng trong nhóm
+  onPost: (content: string, title?: string, imageUrl?: string, videoUrl?: string, audioUrl?: string, fileUrl?: string, category?: Post['category'], downloadCost?: number) => void;
 }
 
 type PostMode = 'status' | 'qna' | 'blog' | 'document';
 
 const EMOJIS = ['😊', '😂', '🥰', '😭', '😡', '👍', '❤️', '🎉', '🍎', '🍼', '🧸', '💊'];
 
-const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
+// Đơn giản hóa accept string để đảm bảo hoạt động tốt trên mọi OS/Browser
+const DOCUMENT_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt";
+
+const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onPost }) => {
   const [mode, setMode] = useState<PostMode>('status');
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
+  const [downloadCost, setDownloadCost] = useState<number>(0); // Mặc định miễn phí
   
   // State quản lý file upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -40,22 +45,20 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     if (e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
         
-        // Kiểm tra kích thước file (Ví dụ: giới hạn 20MB)
-        if (file.size > 20 * 1024 * 1024) {
-            setUploadError("File quá lớn! Vui lòng chọn file dưới 20MB.");
+        // Tăng giới hạn lên 100MB
+        if (file.size > 100 * 1024 * 1024) {
+            setUploadError("File quá lớn! Vui lòng chọn file dưới 100MB.");
             return;
         }
 
         setSelectedFile(file);
         setFileType(type);
-        // Với document, previewUrl không cần thiết phải là blob image, nhưng ta giữ để logic thống nhất hoặc hiển thị icon
         setPreviewUrl(URL.createObjectURL(file));
-        setIsExpanded(true);
+        setIsExpanded(true); // Mở rộng form ngay lập tức
         
-        // Nếu chọn tài liệu, tự động chuyển sang chế độ Document hoặc Blog nếu đang ở Status
+        // Nếu chọn tài liệu mà đang ở chế độ status thì chuyển sang tab document
         if (type === 'document' && mode === 'status') {
-             // Có thể giữ nguyên status hoặc chuyển mode tùy logic UX.
-             // Ở đây ta giữ nguyên, nhưng có thể highlight
+             setMode('document');
         }
     }
   };
@@ -69,6 +72,12 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
       if (videoInputRef.current) videoInputRef.current.value = '';
       if (audioInputRef.current) audioInputRef.current.value = '';
       if (docInputRef.current) docInputRef.current.value = '';
+  };
+
+  const triggerFileInput = (ref: React.RefObject<HTMLInputElement | null>) => {
+      if (ref.current) {
+          ref.current.click();
+      }
   };
 
   const handleSubmit = async () => {
@@ -85,11 +94,10 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
 
     if (mode === 'blog') category = 'Blog';
     if (mode === 'qna') category = 'QnA';
-    // Nếu up tài liệu mà đang ở mode status/blog, có thể tự nhận diện là Document nếu muốn
+    if (mode === 'document') category = 'Document';
     if (fileType === 'document') category = 'Document'; 
     
     try {
-        // Xử lý upload file nếu có
         if (selectedFile && fileType) {
             const folder = fileType === 'document' ? 'documents' : 'posts';
             const downloadUrl = await uploadFileToStorage(selectedFile, folder);
@@ -100,11 +108,11 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
             if (fileType === 'document') finalFileUrl = downloadUrl;
         }
 
-        onPost(content, title, finalImageUrl, finalVideoUrl, finalAudioUrl, finalFileUrl, category);
+        onPost(content, title, finalImageUrl, finalVideoUrl, finalAudioUrl, finalFileUrl, category, downloadCost);
         
-        // Reset form
         setContent('');
         setTitle('');
+        setDownloadCost(0);
         removeFile();
         setShowEmoji(false);
         setMode('status');
@@ -112,13 +120,11 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     } catch (error: any) {
         console.error("Upload failed:", error);
         let msg = "Có lỗi xảy ra khi tải file.";
-        
         if (error.code === 'storage/unauthorized') {
-            msg = "Lỗi quyền truy cập: Bạn chưa cấu hình 'Rules' trong Firebase Storage.";
-        } else if (error.code === 'storage/canceled') {
-            msg = "Đã hủy tải lên.";
+            msg = "Lỗi quyền: Bạn chưa cấu hình Rules trong Firebase Storage.";
+        } else if (error.message?.includes("Quá thời gian")) {
+            msg = error.message;
         }
-
         setUploadError(msg);
         alert(msg);
     } finally {
@@ -136,81 +142,89 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
   };
 
   const getPlaceholder = () => {
+      if (communityName) return `Chia sẻ với ${communityName}...`;
       if (mode === 'qna') return "Đặt câu hỏi cho cộng đồng các mẹ...";
       if (mode === 'blog') return "Viết nội dung chia sẻ...";
+      if (mode === 'document') return "Mô tả tài liệu này...";
       return `${currentUser.name} ơi, bạn đang nghĩ gì thế?`;
   }
 
-  const getTitlePlaceholder = () => {
-      if (mode === 'qna') return "Tiêu đề câu hỏi (Ví dụ: Bé bị ho phải làm sao?)";
-      if (mode === 'blog') return "Tiêu đề bài chia sẻ";
-      return "Tiêu đề (tùy chọn)";
-  }
+  // Updated styling for tabs
+  const tabStyle = (isActive: boolean) => 
+    `flex-1 py-4 text-sm font-bold flex items-center justify-center space-x-2 transition-all border-b-2 ${
+      isActive 
+        ? 'border-primary-500 text-primary-600' 
+        : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+    }`;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6 overflow-visible relative z-10">
       {/* Hidden File Inputs */}
       <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={(e) => handleFileSelect(e, 'image')} />
-      <input type="file" ref={videoInputRef} accept="video/mp4,video/quicktime" className="hidden" onChange={(e) => handleFileSelect(e, 'video')} />
-      <input type="file" ref={audioInputRef} accept="audio/mp3,audio/mpeg,audio/wav" className="hidden" onChange={(e) => handleFileSelect(e, 'audio')} />
-      <input type="file" ref={docInputRef} accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={(e) => handleFileSelect(e, 'document')} />
+      <input type="file" ref={videoInputRef} accept="video/*" className="hidden" onChange={(e) => handleFileSelect(e, 'video')} />
+      <input type="file" ref={audioInputRef} accept="audio/*" className="hidden" onChange={(e) => handleFileSelect(e, 'audio')} />
+      {/* Cập nhật accept cho document */}
+      <input type="file" ref={docInputRef} accept={DOCUMENT_ACCEPT} className="hidden" onChange={(e) => handleFileSelect(e, 'document')} />
 
       {/* Top Tabs */}
-      <div className="flex border-b border-gray-100 bg-gray-50/50">
-          <button 
-            onClick={() => switchMode('status')}
-            className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center space-x-2 transition-colors ${mode === 'status' ? 'bg-white text-primary-600 border-b-2 border-primary-500' : 'text-gray-500 hover:bg-gray-100'}`}
-          >
-              <PenTool size={16} /> <span>Tạo bài viết</span>
+      <div className="flex border-b border-gray-100">
+          <button onClick={() => switchMode('status')} className={tabStyle(mode === 'status')}>
+              <PenTool size={16} /> <span className="hidden sm:inline">Tạo bài viết</span><span className="sm:hidden">Bài viết</span>
           </button>
-          <button 
-            onClick={() => switchMode('qna')}
-            className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center space-x-2 transition-colors ${mode === 'qna' ? 'bg-white text-blue-600 border-b-2 border-blue-500' : 'text-gray-500 hover:bg-gray-100'}`}
-          >
-              <HelpCircle size={16} /> <span>Hỏi đáp</span>
+          <button onClick={() => switchMode('qna')} className={tabStyle(mode === 'qna')}>
+              <HelpCircle size={16} /> <span className="hidden sm:inline">Hỏi đáp</span><span className="sm:hidden">Hỏi đáp</span>
           </button>
-          <button 
-            onClick={() => switchMode('blog')}
-            className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center space-x-2 transition-colors ${mode === 'blog' ? 'bg-white text-green-600 border-b-2 border-green-500' : 'text-gray-500 hover:bg-gray-100'}`}
-          >
-              <FileText size={16} /> <span>Góc chia sẻ</span>
+          <button onClick={() => switchMode('blog')} className={tabStyle(mode === 'blog')}>
+              <FileText size={16} /> <span className="hidden sm:inline">Góc chia sẻ</span><span className="sm:hidden">Chia sẻ</span>
+          </button>
+          <button onClick={() => switchMode('document')} className={tabStyle(mode === 'document')}>
+              <Paperclip size={16} /> <span className="hidden sm:inline">Tài liệu</span><span className="sm:hidden">Tài liệu</span>
           </button>
       </div>
 
       <div className="p-4">
         {uploadError && (
             <div className="mb-3 p-3 bg-red-50 border border-red-100 text-red-600 rounded-lg text-sm flex items-start">
-                <AlertCircle size={16} className="mr-2 mt-0.5 shrink-0" /> 
-                <span>{uploadError}</span>
+                <AlertCircle size={16} className="mr-2 mt-0.5 shrink-0" /> <span>{uploadError}</span>
             </div>
         )}
 
         <div className="flex items-start gap-3">
-            <img 
-            src={currentUser.avatar} 
-            alt={currentUser.name} 
-            className="w-10 h-10 rounded-full border border-gray-200 object-cover mt-1"
-            />
+            <img src={currentUser.avatar} alt={currentUser.name} className="w-10 h-10 rounded-full border border-gray-200 object-cover mt-1" />
             <div className="flex-1 space-y-3">
                 {!isExpanded && (
-                    <div 
-                        onClick={() => setIsExpanded(true)}
-                        className="w-full bg-gray-100 hover:bg-gray-200 transition-colors rounded-full py-3 px-4 cursor-pointer text-gray-500 select-none"
-                    >
+                    <div onClick={() => setIsExpanded(true)} className="w-full bg-gray-50 hover:bg-gray-100 transition-colors rounded-full py-3 px-4 cursor-pointer text-gray-500 select-none text-sm">
                         {getPlaceholder()}
                     </div>
                 )}
 
                 {isExpanded && (
                     <div className="animate-fade-in space-y-3">
-                        {(mode === 'qna' || mode === 'blog' || fileType === 'document') && (
+                        {/* Title Input */}
+                        {(mode === 'qna' || mode === 'blog' || mode === 'document' || fileType === 'document') && (
                             <input 
                                 type="text"
-                                placeholder={getTitlePlaceholder()}
+                                placeholder={mode === 'qna' ? "Tiêu đề câu hỏi..." : mode === 'document' ? "Tên tài liệu..." : "Tiêu đề bài viết..."}
                                 className="w-full font-bold text-lg border-b border-gray-200 focus:border-primary-500 outline-none py-2 bg-transparent"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                             />
+                        )}
+
+                        {/* Cost Input for Documents */}
+                        {mode === 'document' && (
+                            <div className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg border border-orange-100 w-fit">
+                                <Coins size={18} className="text-orange-500" />
+                                <span className="text-sm font-bold text-gray-700">Điểm tải về:</span>
+                                <input 
+                                    type="number" 
+                                    min="0"
+                                    value={downloadCost}
+                                    onChange={(e) => setDownloadCost(Number(e.target.value))}
+                                    className="w-20 bg-white border border-gray-300 rounded px-2 py-1 text-sm font-bold focus:outline-none focus:border-orange-500"
+                                />
+                                <span className="text-xs text-gray-500">{downloadCost === 0 ? '(Miễn phí)' : 'điểm'}</span>
+                            </div>
                         )}
                         
                         <textarea 
@@ -225,59 +239,34 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                         {showEmoji && (
                             <div className="flex flex-wrap gap-2 p-2 bg-gray-50 rounded-xl border border-gray-100 animate-fade-in">
                                 {EMOJIS.map(e => (
-                                    <button 
-                                        key={e} 
-                                        onClick={() => addEmoji(e)}
-                                        className="text-xl hover:bg-gray-200 p-1.5 rounded-lg transition-colors"
-                                    >
-                                        {e}
-                                    </button>
+                                    <button key={e} onClick={() => addEmoji(e)} className="text-xl hover:bg-gray-200 p-1.5 rounded-lg transition-colors">{e}</button>
                                 ))}
                             </div>
                         )}
 
-                        {/* File Preview Area */}
+                        {/* File Preview */}
                         {selectedFile && previewUrl && (
                             <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 relative animate-fade-in mt-2">
-                                <button 
-                                    onClick={removeFile}
-                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-sm z-10"
-                                >
+                                <button onClick={removeFile} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-sm z-10">
                                     <X size={14} />
                                 </button>
-
-                                {fileType === 'image' && (
-                                    <img src={previewUrl} className="max-h-60 rounded-lg object-contain w-full bg-black/5" alt="Preview"/>
-                                )}
-
-                                {fileType === 'video' && (
-                                    <video src={previewUrl} controls className="max-h-60 rounded-lg w-full bg-black" />
-                                )}
-
+                                {fileType === 'image' && <img src={previewUrl} className="max-h-60 rounded-lg object-contain w-full" alt="Preview"/>}
+                                {fileType === 'video' && <video src={previewUrl} controls className="max-h-60 rounded-lg w-full bg-black" />}
                                 {fileType === 'audio' && (
                                     <div className="flex items-center p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
-                                        <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mr-3">
-                                            <Music size={20} />
-                                        </div>
+                                        <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mr-3"><Music size={20} /></div>
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold text-sm text-gray-800 truncate">{selectedFile.name}</p>
-                                            <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                                         </div>
                                         <audio src={previewUrl} controls className="ml-2 h-8 w-40" />
                                     </div>
                                 )}
-
                                 {fileType === 'document' && (
                                     <div className="flex items-center p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
-                                        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mr-3">
-                                            <FileText size={20} />
-                                        </div>
+                                        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mr-3"><FileText size={20} /></div>
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold text-sm text-gray-800 truncate">{selectedFile.name}</p>
-                                            <p className="text-xs text-gray-500">
-                                                {(selectedFile.size / 1024).toFixed(0)} KB • 
-                                                <span className="uppercase ml-1">{selectedFile.name.split('.').pop()}</span>
-                                            </p>
+                                            <p className="text-xs text-gray-500">{(selectedFile.size / 1024).toFixed(0)} KB</p>
                                         </div>
                                     </div>
                                 )}
@@ -290,58 +279,20 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
       
         <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-50">
             <div className="flex space-x-1">
-                 {/* Image Upload Button */}
-                 <button 
-                    onClick={() => imageInputRef.current?.click()}
-                    className="p-2 rounded-full hover:bg-green-50 text-green-600 transition-colors flex items-center space-x-1"
-                    title="Tải ảnh"
-                    disabled={isUploading}
-                >
-                    <Image size={20} />
-                    <span className="text-xs font-medium hidden sm:inline">Ảnh</span>
+                 <button onClick={() => triggerFileInput(imageInputRef)} className="p-2 rounded-full hover:bg-green-50 text-green-600 transition-colors flex items-center space-x-1" disabled={isUploading}>
+                    <Image size={20} /> <span className="text-xs font-medium hidden sm:inline">Ảnh</span>
                  </button>
-
-                 {/* Video Upload Button */}
-                 <button 
-                    onClick={() => videoInputRef.current?.click()}
-                    className="p-2 rounded-full hover:bg-red-50 text-red-600 transition-colors flex items-center space-x-1"
-                    title="Tải video MP4"
-                    disabled={isUploading}
-                >
-                    <Video size={20} />
-                    <span className="text-xs font-medium hidden sm:inline">Video</span>
+                 <button onClick={() => triggerFileInput(videoInputRef)} className="p-2 rounded-full hover:bg-red-50 text-red-600 transition-colors flex items-center space-x-1" disabled={isUploading}>
+                    <Video size={20} /> <span className="text-xs font-medium hidden sm:inline">Video</span>
                  </button>
-
-                 {/* Audio Upload Button */}
-                 <button 
-                    onClick={() => audioInputRef.current?.click()}
-                    className="p-2 rounded-full hover:bg-purple-50 text-purple-600 transition-colors flex items-center space-x-1"
-                    title="Tải nhạc MP3"
-                    disabled={isUploading}
-                >
-                    <Music size={20} />
-                    <span className="text-xs font-medium hidden sm:inline">MP3</span>
+                 <button onClick={() => triggerFileInput(audioInputRef)} className="p-2 rounded-full hover:bg-purple-50 text-purple-600 transition-colors flex items-center space-x-1" disabled={isUploading}>
+                    <Music size={20} /> <span className="text-xs font-medium hidden sm:inline">MP3</span>
                  </button>
-
-                 {/* Document Upload Button */}
-                 <button 
-                    onClick={() => docInputRef.current?.click()}
-                    className="p-2 rounded-full hover:bg-blue-50 text-blue-600 transition-colors flex items-center space-x-1"
-                    title="Tải tài liệu (PDF, Word)"
-                    disabled={isUploading}
-                >
-                    <Paperclip size={20} />
-                    <span className="text-xs font-medium hidden sm:inline">File</span>
+                 <button onClick={() => triggerFileInput(docInputRef)} className="p-2 rounded-full hover:bg-blue-50 text-blue-600 transition-colors flex items-center space-x-1" disabled={isUploading}>
+                    <Paperclip size={20} /> <span className="text-xs font-medium hidden sm:inline">File</span>
                  </button>
-
-                 {/* Emoji Button */}
-                 <button 
-                    onClick={() => setShowEmoji(!showEmoji)}
-                    className={`p-2 rounded-full transition-colors flex items-center space-x-1 ${showEmoji ? 'bg-yellow-100 text-yellow-600' : 'hover:bg-yellow-50 text-yellow-500'}`}
-                    disabled={isUploading}
-                >
+                 <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full hover:bg-yellow-50 text-yellow-500 transition-colors flex items-center space-x-1" disabled={isUploading}>
                     <Smile size={20} />
-                    <span className="text-xs font-medium hidden sm:inline">Emoji</span>
                  </button>
             </div>
             
@@ -349,22 +300,11 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                  <div className="flex space-x-2">
                     <Button variant="ghost" size="sm" onClick={() => { setIsExpanded(false); setMode('status'); removeFile(); }} disabled={isUploading}>Hủy</Button>
                     <Button size="sm" onClick={handleSubmit} disabled={(!content.trim() && !title.trim() && !selectedFile) || isUploading}>
-                        {isUploading ? (
-                            <>
-                                <Loader2 size={16} className="mr-2 animate-spin" /> Đang tải...
-                            </>
-                        ) : (
-                            <>
-                                <Send size={16} className="mr-2" /> 
-                                {mode === 'qna' ? 'Gửi câu hỏi' : 'Đăng bài'}
-                            </>
-                        )}
+                        {isUploading ? <><Loader2 size={16} className="mr-2 animate-spin" /> Đang tải...</> : <><Send size={16} className="mr-2" /> Đăng bài</>}
                     </Button>
                 </div>
             ) : (
-                <Button size="sm" onClick={() => setIsExpanded(true)} disabled>
-                    Đăng bài
-                </Button>
+                <Button size="sm" onClick={() => setIsExpanded(true)} disabled>Đăng bài</Button>
             )}
         </div>
       </div>

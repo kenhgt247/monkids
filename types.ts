@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -7,6 +8,8 @@ export interface User {
   email?: string;
   points?: number;
   followedCommunities?: string[]; // ID các cộng đồng đã tham gia
+  followers?: string[]; // Danh sách ID người theo dõi mình
+  following?: string[]; // Danh sách ID người mình đang theo dõi
 }
 
 export interface Community {
@@ -49,6 +52,7 @@ export interface Post {
   isLiked?: boolean;
   communityId?: string; // ID cộng đồng nếu bài viết thuộc về nhóm
   communityName?: string; // Tên cộng đồng để hiển thị
+  downloadCost?: number; // Số điểm cần để tải tài liệu (0 = miễn phí)
 }
 
 export interface Game {
@@ -68,10 +72,28 @@ export enum ViewState {
   AI_ASSISTANT = 'AI_ASSISTANT',
   COMMUNITIES = 'COMMUNITIES', // Danh sách tất cả cộng đồng
   COMMUNITY_DETAIL = 'COMMUNITY_DETAIL', // Xem chi tiết 1 cộng đồng
+  PROFILE = 'PROFILE', // Trang cá nhân người dùng
 }
 
 export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   isError?: boolean;
+}
+
+// --- NEW TYPES FOR NOTIFICATIONS ---
+export interface Notification {
+  id: string;
+  toUserId: string;
+  fromUser: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
+  type: 'like' | 'comment' | 'system' | 'award' | 'follow';
+  content: string;
+  postId?: string;
+  isRead: boolean;
+  createdAt: any; // Firestore Timestamp
+  timestamp: number;
 }

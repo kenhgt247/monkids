@@ -1,5 +1,7 @@
+
+
 import { db } from "./firebase";
-import { doc, updateDoc, increment, getDoc } from "firebase/firestore";
+import { doc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { User } from "../types";
 
 // Bảng điểm
@@ -7,7 +9,9 @@ export const POINTS = {
     REGISTER: 50,
     CREATE_POST: 10,
     COMMENT: 5,
-    GET_LIKE: 2
+    GET_LIKE: 2,
+    SHARE: 5,       // Điểm cộng khi chia sẻ
+    DOWNLOAD: -20   // Điểm trừ khi tải tài liệu
 };
 
 // Logic tính danh hiệu dựa trên điểm
@@ -18,14 +22,25 @@ export const getBadgeFromPoints = (points: number): { badge: string, type: User[
     return { badge: 'Thành viên mới', type: 'new' };
 };
 
-// Hàm cộng điểm cho user
-export const addPoints = async (userId: string, amount: number) => {
-    if (!userId) return;
+// Hàm cộng/trừ điểm cho user
+export const addPoints = async (userId: string, amount: number): Promise<boolean> => {
+    if (!userId) return false;
     
     try {
         const userRef = doc(db, "users", userId);
         
-        // 1. Cộng điểm trong Database
+        // Nếu là trừ điểm (amount < 0), kiểm tra xem user có đủ điểm không
+        if (amount < 0) {
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+                const currentPoints = userSnap.data().points || 0;
+                if (currentPoints + amount < 0) {
+                    return false; // Không đủ điểm
+                }
+            }
+        }
+
+        // 1. Cập nhật điểm trong Database
         await updateDoc(userRef, {
             points: increment(amount)
         });
@@ -45,7 +60,41 @@ export const addPoints = async (userId: string, amount: number) => {
                 });
             }
         }
+        return true;
     } catch (error) {
-        console.error("Lỗi cộng điểm:", error);
+        console.error("Lỗi cập nhật điểm:", error);
+        return false;
     }
 };
+
+// Hàm tạo thông báo
+export const createNotification = async (
+    toUserId: string, 
+    type: 'like' | 'comment' | 'system' | 'award' | 'follow', 
+    content: string, 
+    fromUser?: User,
+    postId?: string
+) => {
+    if (!toUserId) return;
+    // Không thông báo cho chính mình
+    if (fromUser && fromUser.id === toUserId && type !== 'system') return;
+
+    try {
+        await addDoc(collection(db, "notifications"), {
+            toUserId,
+            type,
+            content,
+            fromUser: fromUser ? {
+                id: fromUser.id,
+                name: fromUser.name,
+                avatar: fromUser.avatar
+            } : null,
+            postId: postId || null,
+            isRead: false,
+            createdAt: serverTimestamp(),
+            timestamp: Date.now()
+        });
+    } catch (e) {
+        console.error("Lỗi tạo thông báo:", e);
+    }
+}
