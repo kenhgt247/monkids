@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Post, User, Comment } from '../types';
-import { MessageCircle, Heart, Share2, Download, ExternalLink, Send, Shield, Zap, Award, Crown, Leaf } from 'lucide-react';
+import { MessageCircle, Heart, Share2, Download, ExternalLink, Send, Shield, Zap, Award, Crown, Leaf, Music, ChevronRight } from 'lucide-react';
 import Button from './Button';
 
 interface PostCardProps {
@@ -68,7 +68,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
 
   const isQnA = post.category === 'QnA';
   const isBlog = post.category === 'Blog';
-  const embedUrl = post.videoUrl ? getEmbedUrl(post.videoUrl) : null;
+  
+  // Logic hiển thị video: Nếu là file upload (có chứa firebasestorage) thì dùng thẻ <video>, nếu không dùng iframe
+  const isUploadedVideo = post.videoUrl && (post.videoUrl.includes('firebasestorage') || post.videoUrl.endsWith('.mp4'));
+  const embedUrl = !isUploadedVideo && post.videoUrl ? getEmbedUrl(post.videoUrl) : null;
 
   const handleSubmitComment = () => {
       if (!commentText.trim()) return;
@@ -87,7 +90,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
         if (navigator.share) {
             await navigator.share(shareData);
         } else {
-            // Fallback to Facebook Share
             const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(post.title || '')}`;
             window.open(fbShareUrl, '_blank', 'width=600,height=400');
         }
@@ -120,6 +122,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
         <div>
           <div className="flex items-center flex-wrap">
             <h4 className="font-bold text-gray-800 text-sm hover:text-primary-600 transition-colors cursor-pointer">{post.user.name}</h4>
+            
+            {/* Community Name Display */}
+            {post.communityName && (
+                <div className="flex items-center text-gray-800 text-sm">
+                    <span className="mx-1 text-gray-400 text-xs"><ChevronRight size={14} strokeWidth={3} /></span>
+                    <span className="font-bold hover:underline cursor-pointer">{post.communityName}</span>
+                </div>
+            )}
+
             <UserBadge user={post.user} />
           </div>
           <p className="text-gray-400 text-xs mt-0.5 flex items-center">
@@ -141,8 +152,20 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
         {post.content}
       </p>
 
-      {/* Media: Video */}
-      {post.videoUrl && embedUrl && (
+      {/* Media: Video Uploaded (MP4) */}
+      {isUploadedVideo && (
+          <div className="mb-4 rounded-xl overflow-hidden w-full bg-black shadow-sm">
+              <video 
+                src={post.videoUrl} 
+                className="w-full max-h-[500px]" 
+                controls 
+                preload="metadata"
+              />
+          </div>
+      )}
+
+      {/* Media: Video Embed (YouTube/FB) */}
+      {!isUploadedVideo && embedUrl && (
           <div className="mb-4 rounded-xl overflow-hidden w-full aspect-video bg-black shadow-sm">
               <iframe 
                 src={embedUrl} 
@@ -154,21 +177,24 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
               ></iframe>
           </div>
       )}
-      {post.videoUrl && !embedUrl && (
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between">
-              <div className="truncate flex-1 mr-2 text-blue-600 text-sm">
-                  <ExternalLink size={16} className="inline mr-1" />
-                  <a href={post.videoUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                      {post.videoUrl}
-                  </a>
-              </div>
+      
+      {/* Media: Audio (MP3) */}
+      {post.audioUrl && (
+          <div className="mb-4 p-3 bg-purple-50 rounded-xl border border-purple-100 flex items-center">
+               <div className="w-10 h-10 bg-white text-purple-600 rounded-full flex items-center justify-center mr-3 shadow-sm">
+                    <Music size={20} />
+               </div>
+               <div className="flex-1">
+                   <p className="text-xs font-bold text-purple-700 mb-1">File ghi âm / Nhạc</p>
+                   <audio src={post.audioUrl} controls className="w-full h-8" />
+               </div>
           </div>
       )}
 
       {/* Media: Image */}
       {post.imageUrl && (
-        <div className="mb-4 rounded-xl overflow-hidden max-h-96 w-full shadow-sm">
-            <img src={post.imageUrl} alt="Post content" className="w-full h-full object-cover" />
+        <div className="mb-4 rounded-xl overflow-hidden max-h-96 w-full shadow-sm bg-gray-50 flex items-center justify-center">
+            <img src={post.imageUrl} alt="Post content" className="max-w-full max-h-96 object-contain" />
         </div>
       )}
 

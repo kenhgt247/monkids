@@ -5,7 +5,19 @@ export interface User {
   badge?: string;
   badgeType?: 'admin' | 'expert' | 'vip' | 'contributor' | 'new';
   email?: string;
-  points?: number; // Thêm điểm số
+  points?: number;
+  followedCommunities?: string[]; // ID các cộng đồng đã tham gia
+}
+
+export interface Community {
+  id: string;
+  name: string;
+  description: string;
+  coverUrl: string;
+  avatarUrl: string;
+  memberCount: number;
+  members: string[]; // Danh sách ID thành viên
+  tags: string[];
 }
 
 export interface Comment {
@@ -14,7 +26,7 @@ export interface Comment {
   user: User;
   content: string;
   createdAt: string;
-  likedBy?: string[]; // Danh sách ID người đã like comment
+  likedBy?: string[];
 }
 
 export interface Post {
@@ -28,12 +40,15 @@ export interface Post {
   likes: number;
   comments: Comment[];
   createdAt: string;
-  timestamp?: number; // Dùng để sắp xếp bài mới nhất
+  timestamp?: number;
   imageUrl?: string; 
   fileUrl?: string; 
   videoUrl?: string; 
-  likedBy?: string[]; // Danh sách ID người đã like thay vì isLiked cục bộ
+  audioUrl?: string;
+  likedBy?: string[];
   isLiked?: boolean;
+  communityId?: string; // ID cộng đồng nếu bài viết thuộc về nhóm
+  communityName?: string; // Tên cộng đồng để hiển thị
 }
 
 export interface Game {
@@ -51,6 +66,8 @@ export enum ViewState {
   DOCS = 'DOCS',
   GAMES = 'GAMES',
   AI_ASSISTANT = 'AI_ASSISTANT',
+  COMMUNITIES = 'COMMUNITIES', // Danh sách tất cả cộng đồng
+  COMMUNITY_DETAIL = 'COMMUNITY_DETAIL', // Xem chi tiết 1 cộng đồng
 }
 
 export interface ChatMessage {

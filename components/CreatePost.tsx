@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
 import { User, Post } from '../types';
-import { Image, Video, FileText, Smile, Send, HelpCircle, PenTool, X } from 'lucide-react';
+import { Image, Video, FileText, Smile, Send, HelpCircle, PenTool, X, Music, Paperclip, Loader2, AlertCircle } from 'lucide-react';
 import Button from './Button';
+import { uploadFileToStorage } from '../services/uploadService';
 
 interface CreatePostProps {
   currentUser: User;
-  onPost: (content: string, title?: string, imageUrl?: string, videoUrl?: string, category?: Post['category']) => void;
+  onPost: (content: string, title?: string, imageUrl?: string, videoUrl?: string, audioUrl?: string, category?: Post['category']) => void;
 }
 
 type PostMode = 'status' | 'qna' | 'blog';
@@ -16,40 +18,100 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
   const [mode, setMode] = useState<PostMode>('status');
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
-  const [mediaUrl, setMediaUrl] = useState('');
-  const [showMediaInput, setShowMediaInput] = useState(false);
+  
+  // State quản lý file upload
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileType, setFileType] = useState<'image' | 'video' | 'audio' | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const [showEmoji, setShowEmoji] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleSubmit = () => {
-    if (!content.trim() && !mediaUrl.trim()) return;
+  // Refs cho input file ẩn
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'audio') => {
+    setUploadError(null);
+    if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        
+        // Kiểm tra kích thước file (Ví dụ: giới hạn 20MB)
+        if (file.size > 20 * 1024 * 1024) {
+            setUploadError("File quá lớn! Vui lòng chọn file dưới 20MB.");
+            return;
+        }
+
+        setSelectedFile(file);
+        setFileType(type);
+        setPreviewUrl(URL.createObjectURL(file));
+        setIsExpanded(true);
+    }
+  };
+
+  const removeFile = () => {
+      setSelectedFile(null);
+      setFileType(null);
+      setPreviewUrl(null);
+      setUploadError(null);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+      if (videoInputRef.current) videoInputRef.current.value = '';
+      if (audioInputRef.current) audioInputRef.current.value = '';
+  };
+
+  const handleSubmit = async () => {
+    if (!content.trim() && !selectedFile) return;
     
+    setIsUploading(true);
+    setUploadError(null);
+
     let category: Post['category'] = 'Status';
     let finalImageUrl = undefined;
     let finalVideoUrl = undefined;
+    let finalAudioUrl = undefined;
 
     if (mode === 'blog') category = 'Blog';
     if (mode === 'qna') category = 'QnA';
     
-    // Simple naive check for video URL
-    if (mediaUrl.trim()) {
-         if (mediaUrl.includes('youtube') || mediaUrl.includes('youtu.be') || mediaUrl.includes('facebook') || mediaUrl.includes('tiktok')) {
-            finalVideoUrl = mediaUrl;
-        } else {
-            finalImageUrl = mediaUrl;
+    try {
+        // Xử lý upload file nếu có
+        if (selectedFile && fileType) {
+            const downloadUrl = await uploadFileToStorage(selectedFile, 'posts');
+            if (fileType === 'image') finalImageUrl = downloadUrl;
+            if (fileType === 'video') finalVideoUrl = downloadUrl;
+            if (fileType === 'audio') finalAudioUrl = downloadUrl;
         }
-    }
 
-    onPost(content, title, finalImageUrl, finalVideoUrl, category);
-    
-    // Reset form
-    setContent('');
-    setTitle('');
-    setMediaUrl('');
-    setShowMediaInput(false);
-    setShowEmoji(false);
-    setMode('status');
-    setIsExpanded(false);
+        onPost(content, title, finalImageUrl, finalVideoUrl, finalAudioUrl, category);
+        
+        // Reset form
+        setContent('');
+        setTitle('');
+        removeFile();
+        setShowEmoji(false);
+        setMode('status');
+        setIsExpanded(false);
+    } catch (error: any) {
+        console.error("Upload failed:", error);
+        let msg = "Có lỗi xảy ra khi tải file.";
+        
+        // Bắt các lỗi phổ biến của Firebase Storage
+        if (error.code === 'storage/unauthorized') {
+            msg = "Lỗi quyền truy cập: Bạn chưa cấu hình 'Rules' trong Firebase Storage (hoặc chưa đăng nhập).";
+        } else if (error.code === 'storage/canceled') {
+            msg = "Đã hủy tải lên.";
+        } else if (error.code === 'storage/unknown') {
+            msg = "Lỗi không xác định. Vui lòng kiểm tra lại cấu hình Firebase.";
+        }
+
+        setUploadError(msg);
+        alert(msg); // Hiển thị popup để người dùng chắc chắn thấy
+    } finally {
+        setIsUploading(false);
+    }
   };
 
   const switchMode = (newMode: PostMode) => {
@@ -75,6 +137,11 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6 overflow-visible relative z-10">
+      {/* Hidden File Inputs */}
+      <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={(e) => handleFileSelect(e, 'image')} />
+      <input type="file" ref={videoInputRef} accept="video/mp4,video/quicktime" className="hidden" onChange={(e) => handleFileSelect(e, 'video')} />
+      <input type="file" ref={audioInputRef} accept="audio/mp3,audio/mpeg,audio/wav" className="hidden" onChange={(e) => handleFileSelect(e, 'audio')} />
+
       {/* Top Tabs */}
       <div className="flex border-b border-gray-100 bg-gray-50/50">
           <button 
@@ -98,6 +165,13 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
       </div>
 
       <div className="p-4">
+        {uploadError && (
+            <div className="mb-3 p-3 bg-red-50 border border-red-100 text-red-600 rounded-lg text-sm flex items-start">
+                <AlertCircle size={16} className="mr-2 mt-0.5 shrink-0" /> 
+                <span>{uploadError}</span>
+            </div>
+        )}
+
         <div className="flex items-start gap-3">
             <img 
             src={currentUser.avatar} 
@@ -149,38 +223,34 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                             </div>
                         )}
 
-                        {/* Media Input */}
-                        {(showMediaInput || mediaUrl) && (
-                            <div className="bg-gray-50 p-3 rounded-xl border border-dashed border-gray-300 relative animate-fade-in">
-                                {mediaUrl ? (
-                                    <div className="relative">
-                                         <div className="text-xs text-gray-500 mb-1 font-semibold truncate">{mediaUrl}</div>
-                                         {/* Simple Preview */}
-                                         {(mediaUrl.match(/\.(jpeg|jpg|gif|png)$/) != null || mediaUrl.includes('picsum')) ? (
-                                             <img src={mediaUrl} className="h-32 rounded-lg object-cover border border-gray-200" alt="Preview"/>
-                                         ) : (
-                                             <div className="h-20 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 text-sm">
-                                                 <Video size={20} className="mr-2"/> Đã đính kèm link video
-                                             </div>
-                                         )}
-                                         <button 
-                                            onClick={() => setMediaUrl('')}
-                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm"
-                                         >
-                                             <X size={12} />
-                                         </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center">
-                                        <input 
-                                            type="text"
-                                            placeholder="Dán đường link ảnh hoặc video (YouTube, TikTok)..."
-                                            className="flex-1 bg-transparent text-sm outline-none"
-                                            value={mediaUrl}
-                                            onChange={(e) => setMediaUrl(e.target.value)}
-                                            autoFocus
-                                        />
-                                        <button onClick={() => setShowMediaInput(false)} className="text-gray-400 hover:text-gray-600"><X size={16}/></button>
+                        {/* File Preview Area */}
+                        {selectedFile && previewUrl && (
+                            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 relative animate-fade-in mt-2">
+                                <button 
+                                    onClick={removeFile}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-sm z-10"
+                                >
+                                    <X size={14} />
+                                </button>
+
+                                {fileType === 'image' && (
+                                    <img src={previewUrl} className="max-h-60 rounded-lg object-contain w-full bg-black/5" alt="Preview"/>
+                                )}
+
+                                {fileType === 'video' && (
+                                    <video src={previewUrl} controls className="max-h-60 rounded-lg w-full bg-black" />
+                                )}
+
+                                {fileType === 'audio' && (
+                                    <div className="flex items-center p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
+                                        <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mr-3">
+                                            <Music size={20} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-sm text-gray-800 truncate">{selectedFile.name}</p>
+                                            <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                                        </div>
+                                        <audio src={previewUrl} controls className="ml-2 h-8 w-40" />
                                     </div>
                                 )}
                             </div>
@@ -192,17 +262,44 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
       
         <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-50">
             <div className="flex space-x-1">
+                 {/* Image Upload Button */}
                  <button 
-                    onClick={() => setShowMediaInput(!showMediaInput)}
-                    className={`p-2 rounded-full transition-colors flex items-center space-x-1 ${showMediaInput ? 'bg-green-100 text-green-600' : 'hover:bg-green-50 text-green-600'}`}
-                    title="Ảnh/Video"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="p-2 rounded-full hover:bg-green-50 text-green-600 transition-colors flex items-center space-x-1"
+                    title="Tải ảnh"
+                    disabled={isUploading}
                 >
                     <Image size={20} />
-                    <span className="text-xs font-medium hidden sm:inline">Ảnh/Video</span>
+                    <span className="text-xs font-medium hidden sm:inline">Ảnh</span>
                  </button>
+
+                 {/* Video Upload Button */}
+                 <button 
+                    onClick={() => videoInputRef.current?.click()}
+                    className="p-2 rounded-full hover:bg-red-50 text-red-600 transition-colors flex items-center space-x-1"
+                    title="Tải video MP4"
+                    disabled={isUploading}
+                >
+                    <Video size={20} />
+                    <span className="text-xs font-medium hidden sm:inline">Video</span>
+                 </button>
+
+                 {/* Audio Upload Button */}
+                 <button 
+                    onClick={() => audioInputRef.current?.click()}
+                    className="p-2 rounded-full hover:bg-purple-50 text-purple-600 transition-colors flex items-center space-x-1"
+                    title="Tải nhạc MP3"
+                    disabled={isUploading}
+                >
+                    <Music size={20} />
+                    <span className="text-xs font-medium hidden sm:inline">MP3</span>
+                 </button>
+
+                 {/* Emoji Button */}
                  <button 
                     onClick={() => setShowEmoji(!showEmoji)}
                     className={`p-2 rounded-full transition-colors flex items-center space-x-1 ${showEmoji ? 'bg-yellow-100 text-yellow-600' : 'hover:bg-yellow-50 text-yellow-500'}`}
+                    disabled={isUploading}
                 >
                     <Smile size={20} />
                     <span className="text-xs font-medium hidden sm:inline">Cảm xúc</span>
@@ -211,10 +308,18 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
             
             {isExpanded ? (
                  <div className="flex space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => { setIsExpanded(false); setMode('status'); setShowMediaInput(false); }}>Hủy</Button>
-                    <Button size="sm" onClick={handleSubmit} disabled={!content.trim() && !title.trim() && !mediaUrl.trim()}>
-                        <Send size={16} className="mr-2" /> 
-                        {mode === 'qna' ? 'Gửi câu hỏi' : 'Đăng bài'}
+                    <Button variant="ghost" size="sm" onClick={() => { setIsExpanded(false); setMode('status'); removeFile(); }} disabled={isUploading}>Hủy</Button>
+                    <Button size="sm" onClick={handleSubmit} disabled={(!content.trim() && !title.trim() && !selectedFile) || isUploading}>
+                        {isUploading ? (
+                            <>
+                                <Loader2 size={16} className="mr-2 animate-spin" /> Đang tải lên...
+                            </>
+                        ) : (
+                            <>
+                                <Send size={16} className="mr-2" /> 
+                                {mode === 'qna' ? 'Gửi câu hỏi' : 'Đăng bài'}
+                            </>
+                        )}
                     </Button>
                 </div>
             ) : (
