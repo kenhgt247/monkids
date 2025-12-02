@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState, Post, User, Comment } from './types';
-import { mockPosts, mockGames } from './services/mockData';
+import { mockGames } from './services/mockData';
 import PostCard from './components/PostCard';
 import MemoryGame from './pages/MemoryGame';
 import ChatAssistant from './pages/ChatAssistant';
@@ -8,60 +8,101 @@ import CreatePost from './components/CreatePost';
 import AuthPage from './pages/AuthPage';
 import Button from './components/Button';
 import { 
-  Home, 
-  MessageCircle, 
-  BookOpen, 
-  FileText, 
-  Gamepad2, 
-  Search, 
-  Menu, 
-  X, 
-  Bell,
-  Sparkles,
-  Plus,
-  LogOut,
-  LogIn,
-  Loader2
+  Home, MessageCircle, BookOpen, FileText, Gamepad2, Search, Menu, X, Bell, Sparkles, Plus, LogOut, LogIn, Loader2, Star
 } from 'lucide-react';
 
-// Import Firebase (sẽ dùng sau này khi bạn điền config)
-import { auth } from './services/firebase'; 
+// --- FIREBASE IMPORTS ---
+import { auth, db } from './services/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { 
+    collection, addDoc, query, orderBy, onSnapshot, 
+    doc, updateDoc, arrayUnion, increment, getDoc 
+} from 'firebase/firestore';
+import { addPoints, POINTS } from './services/userService';
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null); // Default null (Guest)
+  const [user, setUser] = useState<User | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.HOME);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Data State
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // -- INITIAL DATA LOADING --
+  // 1. Lắng nghe trạng thái đăng nhập
   useEffect(() => {
-    // Mô phỏng việc tải dữ liệu từ server (Database)
-    // Sau này, bạn sẽ thay thế dòng này bằng code gọi Firebase
-    const fetchPosts = async () => {
-        setIsLoading(true);
-        // Giả lập độ trễ mạng
-        await new Promise(resolve => setTimeout(resolve, 800)); 
-        setPosts(mockPosts);
-        setIsLoading(false);
-    };
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (firebaseUser) {
+            // Lấy profile user từ Firestore để có điểm số
+            const userRef = doc(db, "users", firebaseUser.uid);
+            const userSnap = await getDoc(userRef);
+            
+            if (userSnap.exists()) {
+                 setUser(userSnap.data() as User);
+            } else {
+                 // Fallback
+                 setUser({
+                    id: firebaseUser.uid,
+                    name: firebaseUser.displayName || 'User',
+                    avatar: firebaseUser.photoURL || '',
+                    email: firebaseUser.email || '',
+                    points: 0,
+                    badge: 'Mới',
+                    badgeType: 'new'
+                 });
+            }
+        } else {
+            setUser(null);
+        }
+    });
 
-    fetchPosts();
+    return () => unsubscribe();
   }, []);
 
-  // -- AUTH --
-  
+  // 2. Lắng nghe thay đổi điểm số của User hiện tại (Realtime)
+  useEffect(() => {
+      if (!user?.id) return;
+      
+      const userRef = doc(db, "users", user.id);
+      const unsubscribe = onSnapshot(userRef, (doc) => {
+          if (doc.exists()) {
+              setUser(prev => ({ ...prev, ...doc.data() } as User));
+          }
+      });
+
+      return () => unsubscribe();
+  }, [user?.id]);
+
+  // 3. Tải bài viết từ Firestore (Realtime)
+  useEffect(() => {
+    setIsLoading(true);
+    const q = query(collection(db, "posts"), orderBy("timestamp", "desc"));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedPosts: Post[] = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                // Map lại trạng thái like cho user hiện tại
+                isLiked: data.likedBy ? data.likedBy.includes(user?.id || '') : false
+            } as Post;
+        });
+        setPosts(fetchedPosts);
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]); // Re-run khi user đổi để cập nhật trạng thái isLiked
+
   const handleLoginSuccess = (u: User) => {
     setUser(u);
     setShowAuth(false);
   };
 
-  const handleLogout = () => {
-      setUser(null);
+  const handleLogout = async () => {
+      await signOut(auth);
       setCurrentView(ViewState.HOME);
   };
 
@@ -73,73 +114,101 @@ const App: React.FC = () => {
       return true;
   };
 
-  // -- POST ACTIONS --
+  // --- ACTIONS WITH FIREBASE ---
 
-  const handleCreatePost = (content: string, title?: string, imageUrl?: string, videoUrl?: string, category: Post['category'] = 'Status') => {
-    if (!user) return; // Should be hidden anyway
+  const handleCreatePost = async (content: string, title?: string, imageUrl?: string, videoUrl?: string, category: Post['category'] = 'Status') => {
+    if (!user) return;
 
-    const newPost: Post = {
-        id: `new_${Date.now()}`,
-        userId: user.id,
-        user: user,
-        title: title, 
-        content: content,
-        category: category,
-        tags: category === 'QnA' ? ['Hỏi đáp'] : ['Chia sẻ'],
-        likes: 0,
-        comments: [],
-        createdAt: 'Vừa xong',
-        imageUrl: imageUrl,
-        videoUrl: videoUrl,
-        isLiked: false
-    };
-    
-    // Cập nhật State cục bộ (Local Update)
-    // Sau này: Gọi hàm addDoc() của Firebase để lưu lên server
-    setPosts([newPost, ...posts]);
+    try {
+        const newPost = {
+            userId: user.id,
+            user: user, // Lưu snapshot user tại thời điểm đăng
+            title: title || '',
+            content: content,
+            category: category,
+            tags: category === 'QnA' ? ['Hỏi đáp'] : ['Chia sẻ'],
+            likes: 0,
+            likedBy: [],
+            comments: [],
+            createdAt: new Date().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }),
+            timestamp: Date.now(),
+            imageUrl: imageUrl || '',
+            videoUrl: videoUrl || ''
+        };
+
+        // 1. Lưu bài viết
+        await addDoc(collection(db, "posts"), newPost);
+        
+        // 2. Cộng điểm cho người đăng
+        await addPoints(user.id, POINTS.CREATE_POST);
+
+    } catch (e) {
+        console.error("Error adding post: ", e);
+        alert("Có lỗi khi đăng bài, vui lòng thử lại.");
+    }
   };
 
-  const handleLike = (postId: string) => {
+  const handleLike = async (postId: string) => {
     if (!requireAuth()) return;
+    if (!user) return;
 
-    // Sau này: Gọi updateDoc() của Firebase
-    setPosts(posts.map(post => {
-        if (post.id === postId) {
-            const isLiked = !post.isLiked;
-            return {
-                ...post,
-                isLiked: isLiked,
-                likes: isLiked ? post.likes + 1 : post.likes - 1
-            };
+    try {
+        const postRef = doc(db, "posts", postId);
+        const post = posts.find(p => p.id === postId);
+        if (!post) return;
+
+        const isLiked = post.likedBy?.includes(user.id);
+
+        if (isLiked) {
+            // Unlike
+            await updateDoc(postRef, {
+                likes: increment(-1),
+                likedBy: post.likedBy?.filter(id => id !== user.id)
+            });
+        } else {
+            // Like
+            await updateDoc(postRef, {
+                likes: increment(1),
+                likedBy: arrayUnion(user.id)
+            });
+            // Cộng điểm cho chủ bài viết (nếu không phải tự like)
+            if (post.userId !== user.id) {
+                await addPoints(post.userId, POINTS.GET_LIKE);
+            }
         }
-        return post;
-    }));
+    } catch (e) {
+        console.error("Error like: ", e);
+    }
   };
 
-  const handleComment = (postId: string, content: string) => {
-      if (!user) return; // Guarded in UI, but safe check
+  const handleComment = async (postId: string, content: string) => {
+      if (!user) return;
 
-      const newComment: Comment = {
-          id: `c_${Date.now()}`,
-          userId: user.id,
-          user: user,
-          content: content,
-          createdAt: 'Vừa xong'
-      };
+      try {
+        const newComment: Comment = {
+            id: `c_${Date.now()}`,
+            userId: user.id,
+            user: user,
+            content: content,
+            createdAt: new Date().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        };
 
-      // Sau này: Cập nhật mảng comments trong Firestore
-      setPosts(posts.map(post => {
-          if (post.id === postId) {
-              return {
-                  ...post,
-                  comments: [...post.comments, newComment]
-              };
-          }
-          return post;
-      }));
+        const postRef = doc(db, "posts", postId);
+        
+        // 1. Update Post
+        await updateDoc(postRef, {
+            comments: arrayUnion(newComment)
+        });
+
+        // 2. Cộng điểm người comment
+        await addPoints(user.id, POINTS.COMMENT);
+
+      } catch (e) {
+          console.error("Error comment: ", e);
+      }
   };
 
-  // -- RENDERERS --
+  // --- RENDERERS ---
 
   if (showAuth) {
       return <AuthPage onLogin={handleLoginSuccess} onCancel={() => setShowAuth(false)} />;
@@ -147,7 +216,7 @@ const App: React.FC = () => {
 
   const renderStories = () => (
     <div className="flex gap-3 mb-6 overflow-x-auto pb-4 no-scrollbar">
-        {/* User Story Card (Add new) */}
+        {/* User Story Card */}
         {user ? (
             <div className="shrink-0 w-28 h-48 rounded-2xl overflow-hidden relative group cursor-pointer shadow-sm border border-gray-200 bg-white hover:shadow-md transition-all">
                 <img src={user.avatar} className="w-full h-3/4 object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="Me" />
@@ -169,9 +238,9 @@ const App: React.FC = () => {
                 <span className="text-xs font-bold text-primary-600">Đăng nhập để đăng tin</span>
             </div>
         )}
-
-        {/* Mock Stories */}
-        {[1, 2, 3, 4, 5].map((item) => (
+        
+        {/* Mock Stories for UI fullness */}
+        {[1, 2, 3, 4].map((item) => (
             <div key={item} className="shrink-0 w-28 h-48 rounded-2xl overflow-hidden relative cursor-pointer group shadow-sm hover:shadow-md transition-all">
                 <img 
                     src={`https://picsum.photos/seed/story${item}/200/300`} 
@@ -180,7 +249,7 @@ const App: React.FC = () => {
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70"></div>
                 <div className="absolute top-2 left-2 w-9 h-9 rounded-full border-2 border-primary-500 p-0.5 bg-white">
-                     <img src={`https://picsum.photos/seed/user${item + 2}/100/100`} className="w-full h-full rounded-full object-cover" />
+                     <img src={`https://picsum.photos/seed/user${item + 10}/100/100`} className="w-full h-full rounded-full object-cover" />
                 </div>
                 <span className="absolute bottom-3 left-3 text-white text-xs font-bold truncate w-20">Mẹ Bé {item}</span>
             </div>
@@ -198,7 +267,6 @@ const App: React.FC = () => {
         <div className="w-full">
             {currentView === ViewState.HOME && renderStories()}
             
-            {/* Contextual Create Post - Only show if Logged In */}
             {user && (currentView === ViewState.HOME || currentView === ViewState.QNA || currentView === ViewState.BLOG) && (
                 <CreatePost currentUser={user} onPost={handleCreatePost} />
             )}
@@ -207,13 +275,12 @@ const App: React.FC = () => {
                  <div className="bg-gradient-to-r from-primary-500 to-pink-500 rounded-2xl p-6 mb-6 text-white flex items-center justify-between shadow-lg shadow-primary-200">
                     <div>
                         <h3 className="font-bold text-xl mb-1">Tham gia cộng đồng Mom&Kids</h3>
-                        <p className="text-primary-100 text-sm">Đăng nhập để chia sẻ, hỏi đáp và lưu lại những khoảnh khắc đáng nhớ.</p>
+                        <p className="text-primary-100 text-sm">Đăng nhập để chia sẻ, tích điểm đổi quà và lưu lại những khoảnh khắc đáng nhớ.</p>
                     </div>
                     <Button onClick={() => setShowAuth(true)} className="bg-white text-primary-600 hover:bg-gray-50 border-none shrink-0 ml-4">Đăng nhập ngay</Button>
                  </div>
             )}
 
-            {/* Filter Tags for QnA */}
             {currentView === ViewState.QNA && (
                  <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
                     {['Tất cả', 'Dinh dưỡng', 'Giấc ngủ', 'Bệnh lý', 'Tâm lý'].map((tag, i) => (
@@ -228,7 +295,7 @@ const App: React.FC = () => {
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-20">
                         <Loader2 className="animate-spin text-primary-500 mb-2" size={32} />
-                        <p className="text-gray-400 text-sm">Đang tải bảng tin...</p>
+                        <p className="text-gray-400 text-sm">Đang tải dữ liệu từ cộng đồng...</p>
                     </div>
                 ) : filteredPosts.length > 0 ? (
                     filteredPosts.map(post => (
@@ -242,7 +309,7 @@ const App: React.FC = () => {
                     ))
                 ) : (
                     <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-300">
-                        <p className="text-gray-500">Chưa có bài viết nào trong mục này.</p>
+                        <p className="text-gray-500">Chưa có bài viết nào. Hãy là người đầu tiên đăng bài!</p>
                     </div>
                 )}
             </div>
@@ -252,8 +319,7 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (currentView) {
-      case ViewState.HOME:
-        return renderFeed();
+      case ViewState.HOME: return renderFeed();
       case ViewState.QNA:
         return (
           <div className="w-full">
@@ -301,8 +367,7 @@ const App: React.FC = () => {
             <ChatAssistant />
           </div>
         );
-      default:
-        return <div>Nội dung không tồn tại</div>;
+      default: return <div>Nội dung không tồn tại</div>;
     }
   };
 
@@ -362,10 +427,13 @@ const App: React.FC = () => {
                 {user ? (
                     <>
                         <div className="flex items-center space-x-2 bg-white border border-gray-100 hover:border-primary-200 hover:shadow-md pr-4 pl-1 py-1 rounded-full transition-all cursor-pointer group">
-                            <img src={user.avatar} alt="Avatar" className="w-9 h-9 rounded-full border border-gray-100 group-hover:scale-105 transition-transform" />
+                            <img src={user.avatar} alt="Avatar" className="w-9 h-9 rounded-full border border-gray-100 group-hover:scale-105 transition-transform object-cover" />
                             <div className="hidden lg:block text-left">
                                 <p className="text-sm font-bold text-gray-700 leading-tight group-hover:text-primary-600">{user.name}</p>
-                                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Thành viên</p>
+                                <div className="flex items-center text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                                    <span className="text-primary-600 font-bold mr-1">{user.points || 0} pts</span>
+                                    <span>• {user.badge}</span>
+                                </div>
                             </div>
                         </div>
                         <button 
@@ -421,21 +489,38 @@ const App: React.FC = () => {
                    )}
                 </button>
             </div>
-
-            <div className="pt-4 text-xs text-gray-400 text-center leading-relaxed">
-                © 2024 Mom&Kids Community<br/>
-                Điều khoản • Riêng tư • Hỗ trợ
-            </div>
         </aside>
 
-        {/* Center Feed (Content) - Col Span 6 or 7 based on screen */}
+        {/* Center Feed (Content) */}
         <main className="col-span-1 md:col-span-9 lg:col-span-6 xl:col-span-7 min-w-0">
             {renderContent()}
         </main>
 
-        {/* Right Sidebar (Widgets) - Col Span 3 */}
+        {/* Right Sidebar (Widgets) */}
         <aside className="hidden lg:block lg:col-span-3 xl:col-span-3 sticky top-28 h-fit space-y-6">
             
+            {/* Gamification Widget */}
+            {user && (
+                 <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-3xl p-6 text-white shadow-xl shadow-orange-200 relative overflow-hidden">
+                    <div className="relative z-10">
+                        <div className="flex justify-between items-start mb-2">
+                             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                <Star className="text-white" size={20} fill="currentColor" />
+                            </div>
+                            <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded-full uppercase">{user.badge}</span>
+                        </div>
+                       
+                        <h4 className="font-bold text-2xl mb-1">{user.points} Điểm</h4>
+                        <p className="text-orange-50 text-sm mb-4">Tích thêm {1000 - (user.points || 0)} điểm để lên hạng Chuyên Gia!</p>
+                        
+                        <div className="w-full bg-black/10 rounded-full h-2 overflow-hidden">
+                            <div className="bg-white h-full rounded-full" style={{ width: `${Math.min(((user.points || 0) / 1000) * 100, 100)}%` }}></div>
+                        </div>
+                    </div>
+                    <div className="absolute -top-12 -right-12 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                </div>
+            )}
+
             {currentView !== ViewState.AI_ASSISTANT && (
                 <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-3xl p-6 text-white shadow-xl shadow-indigo-200/50 relative overflow-hidden group">
                     <div className="relative z-10">
@@ -451,69 +536,8 @@ const App: React.FC = () => {
                             Chat ngay
                         </Button>
                     </div>
-                    <div className="absolute -top-12 -right-12 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors duration-700"></div>
-                    <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-purple-900/20 rounded-full blur-2xl"></div>
                 </div>
             )}
-
-            {/* Trending Topics */}
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                <h4 className="font-bold text-gray-800 mb-5 flex items-center text-lg">
-                    <span className="bg-red-100 text-red-500 p-2 rounded-xl mr-3"><Sparkles size={18}/></span>
-                    Chủ đề hot
-                </h4>
-                <ul className="space-y-3">
-                    {['#AndamkieuNhat', '#Khunghoangtuoi2', '#Giamcanrausinh', '#Dayconthongminh'].map((topic, idx) => (
-                        <li key={topic} className="flex justify-between items-center group cursor-pointer hover:bg-gray-50 p-3 rounded-xl -mx-3 transition-colors">
-                            <div className="flex items-center">
-                                <span className={`text-sm font-bold mr-3 w-5 h-5 flex items-center justify-center rounded-full ${idx < 3 ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-500'}`}>{idx + 1}</span>
-                                <span className="text-gray-700 group-hover:text-primary-600 font-semibold transition-colors text-sm">{topic}</span>
-                            </div>
-                            <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full group-hover:bg-primary-50 group-hover:text-primary-600">1.2k</span>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-
-            {/* Top Members */}
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                <h4 className="font-bold text-gray-800 mb-5 flex items-center text-lg">
-                    <span className="bg-yellow-100 text-yellow-600 p-2 rounded-xl mr-3"><span className="text-lg leading-none">🏆</span></span>
-                    Top thành viên
-                </h4>
-                <div className="space-y-5">
-                     <div className="flex items-center group cursor-pointer">
-                        <div className="relative">
-                            <img src="https://picsum.photos/seed/user2/50/50" className="w-12 h-12 rounded-full mr-3 border-2 border-transparent group-hover:border-primary-300 transition-all" />
-                            <div className="absolute -bottom-1 -right-0 bg-yellow-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-white shadow-sm">#1</div>
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-sm font-bold text-gray-800 group-hover:text-primary-600 transition-colors">Bố Gấu</p>
-                            <div className="flex items-center mt-1">
-                                <div className="h-1.5 w-16 bg-gray-100 rounded-full overflow-hidden mr-2">
-                                    <div className="h-full bg-yellow-400 w-[80%] rounded-full"></div>
-                                </div>
-                                <span className="text-[10px] text-gray-400">2.4k exp</span>
-                            </div>
-                        </div>
-                     </div>
-                      <div className="flex items-center group cursor-pointer">
-                        <div className="relative">
-                            <img src="https://picsum.photos/seed/user4/50/50" className="w-12 h-12 rounded-full mr-3 border-2 border-transparent group-hover:border-primary-300 transition-all" />
-                             <div className="absolute -bottom-1 -right-0 bg-gray-300 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-white shadow-sm">#2</div>
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-sm font-bold text-gray-800 group-hover:text-primary-600 transition-colors">Mẹ Daisy</p>
-                            <div className="flex items-center mt-1">
-                                <div className="h-1.5 w-16 bg-gray-100 rounded-full overflow-hidden mr-2">
-                                    <div className="h-full bg-gray-300 w-[60%] rounded-full"></div>
-                                </div>
-                                <span className="text-[10px] text-gray-400">1.8k exp</span>
-                            </div>
-                        </div>
-                     </div>
-                </div>
-            </div>
         </aside>
       </div>
 

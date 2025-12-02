@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import Button from '../components/Button';
 import { User } from '../types';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
+import { auth, db } from '../services/firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { POINTS, getBadgeFromPoints } from '../services/userService';
 
 interface AuthPageProps {
   onLogin: (user: User) => void;
@@ -13,23 +17,83 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onCancel }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate Login/Register
-    const mockUser: User = {
-        id: `u_${Date.now()}`,
-        name: isLogin ? 'Mẹ Yêu Bé' : name || 'Thành viên mới',
-        avatar: `https://picsum.photos/seed/${Date.now()}/100/100`,
-        email: email,
-        badge: 'Thành viên mới',
-        badgeType: 'new'
-    };
-    onLogin(mockUser);
+    setError('');
+    setLoading(true);
+
+    try {
+        if (isLogin) {
+            // --- ĐĂNG NHẬP ---
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const firebaseUser = userCredential.user;
+            
+            // Lấy thông tin user từ Firestore để có điểm số & badge
+            const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+            
+            if (userDoc.exists()) {
+                const userData = userDoc.data() as User;
+                onLogin(userData);
+            } else {
+                // Fallback nếu không tìm thấy doc (ít khi xảy ra)
+                onLogin({
+                    id: firebaseUser.uid,
+                    name: firebaseUser.displayName || 'User',
+                    email: firebaseUser.email || '',
+                    avatar: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName}&background=random`,
+                    badge: 'Thành viên',
+                    badgeType: 'new',
+                    points: 0
+                });
+            }
+
+        } else {
+            // --- ĐĂNG KÝ ---
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const firebaseUser = userCredential.user;
+
+            // Cập nhật tên hiển thị
+            await updateProfile(firebaseUser, {
+                displayName: name,
+                photoURL: `https://ui-avatars.com/api/?name=${name}&background=random`
+            });
+
+            // Tạo hồ sơ người dùng trong Firestore
+            const initialPoints = POINTS.REGISTER;
+            const { badge, type } = getBadgeFromPoints(initialPoints);
+
+            const newUser: User = {
+                id: firebaseUser.uid,
+                name: name,
+                email: email,
+                avatar: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${name}&background=random`,
+                badge: badge,
+                badgeType: type,
+                points: initialPoints
+            };
+
+            await setDoc(doc(db, "users", firebaseUser.uid), newUser);
+            
+            onLogin(newUser);
+        }
+    } catch (err: any) {
+        console.error(err);
+        let msg = "Đã có lỗi xảy ra.";
+        if (err.code === 'auth/email-already-in-use') msg = "Email này đã được sử dụng.";
+        if (err.code === 'auth/wrong-password') msg = "Sai mật khẩu.";
+        if (err.code === 'auth/user-not-found') msg = "Tài khoản không tồn tại.";
+        if (err.code === 'auth/weak-password') msg = "Mật khẩu quá yếu (cần ít nhất 6 ký tự).";
+        setError(msg);
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#fdfbf7] flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-[#fdfbf7] flex items-center justify-center p-4 relative z-50">
         {onCancel && (
             <button 
                 onClick={onCancel}
@@ -65,9 +129,15 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onCancel }) => {
                 <div className="text-center mb-8">
                     <h2 className="text-2xl font-bold text-gray-800">{isLogin ? 'Đăng Nhập' : 'Đăng Ký Tài Khoản'}</h2>
                     <p className="text-gray-400 text-sm mt-1">
-                        {isLogin ? 'Chào mừng bạn quay trở lại!' : 'Tham gia ngay cộng đồng 10.000+ thành viên'}
+                        {isLogin ? 'Chào mừng bạn quay trở lại!' : 'Tham gia ngay để tích điểm và nhận quà'}
                     </p>
                 </div>
+
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm flex items-center">
+                        <AlertCircle size={16} className="mr-2" /> {error}
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {!isLogin && (
@@ -106,8 +176,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onCancel }) => {
                         />
                     </div>
 
-                    <Button type="submit" className="w-full py-3 mt-4 text-lg">
-                        {isLogin ? 'Đăng nhập' : 'Đăng ký miễn phí'}
+                    <Button type="submit" className="w-full py-3 mt-4 text-lg" disabled={loading}>
+                        {loading ? 'Đang xử lý...' : (isLogin ? 'Đăng nhập' : 'Đăng ký nhận +50 điểm')}
                     </Button>
                 </form>
 
@@ -115,7 +185,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onCancel }) => {
                     <p className="text-gray-500 text-sm">
                         {isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'} 
                         <button 
-                            onClick={() => setIsLogin(!isLogin)}
+                            onClick={() => { setIsLogin(!isLogin); setError(''); }}
                             className="text-primary-600 font-bold ml-1 hover:underline focus:outline-none"
                         >
                             {isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}

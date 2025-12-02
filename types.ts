@@ -5,6 +5,7 @@ export interface User {
   badge?: string;
   badgeType?: 'admin' | 'expert' | 'vip' | 'contributor' | 'new';
   email?: string;
+  points?: number; // Thêm điểm số
 }
 
 export interface Comment {
@@ -26,10 +27,12 @@ export interface Post {
   likes: number;
   comments: Comment[];
   createdAt: string;
+  timestamp?: number; // Dùng để sắp xếp bài mới nhất
   imageUrl?: string; 
   fileUrl?: string; 
   videoUrl?: string; 
-  isLiked?: boolean; // Track if current user liked it
+  likedBy?: string[]; // Danh sách ID người đã like thay vì isLiked cục bộ
+  isLiked?: boolean;
 }
 
 export interface Game {
