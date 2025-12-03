@@ -1,44 +1,34 @@
-module.exports = async (req, res) => {
-  // Chỉ chấp nhận POST
+export default async function handler(req, res) {
+  // Chỉ chấp nhận method POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: { message: 'Method not allowed' } });
   }
 
+  // Lấy API Key từ biến môi trường Vercel (Server-side)
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    return res.status(500).json({ error: { message: 'Missing OpenAI API Key on Server Configuration' } });
+  }
+
   try {
-    // Lấy API Key từ biến môi trường Vercel
-    const apiKey = process.env.OPENAI_API_KEY;
-
-    if (!apiKey) {
-      return res.status(500).json({
-        error: { message: 'Missing OpenAI API Key in Environment Variables' }
-      });
-    }
-
-    // Parse JSON body từ Vercel Serverless Function
-    let body = "";
-    await new Promise(resolve => {
-      req.on("data", chunk => (body += chunk));
-      req.on("end", resolve);
-    });
-
-    const jsonBody = JSON.parse(body);
-
-    // Gọi OpenAI API
+    // Gọi sang OpenAI từ phía Server
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
+        "Authorization": `Bearer ${apiKey}`
       },
-      body: JSON.stringify(jsonBody)
+      body: JSON.stringify(req.body) // Chuyển tiếp body từ client gửi lên
     });
 
     const data = await response.json();
 
+    // Trả kết quả về cho Client
     return res.status(response.status).json(data);
 
-  } catch (err) {
-    console.error("Server ERROR:", err);
-    return res.status(500).json({ error: { message: err.message } });
+  } catch (error) {
+    console.error("Server API Error:", error);
+    return res.status(500).json({ error: { message: error.message || 'Internal Server Error' } });
   }
-};
+}
