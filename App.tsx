@@ -14,7 +14,8 @@ import CreateCommunityModal from './components/CreateCommunityModal';
 import EditPostModal from './components/EditPostModal';
 import StoryViewer from './components/StoryViewer';
 import ChatSystem from './components/ChatSystem';
-import AdminDashboard from './pages/AdminDashboard'; // Import Admin
+import AdminDashboard from './pages/AdminDashboard'; 
+import StaticPage from './pages/StaticPages'; // NEW IMPORT
 import { 
   Home, MessageCircle, BookOpen, FileText, Gamepad2, Search, Menu, X, Bell, Sparkles, Plus, LogOut, LogIn, Loader2, Star, Users, ArrowLeft, Heart, Shield, Award, MapPin, Layers, HelpCircle, PenTool, UserPlus, UserCheck, MessageSquare, User as UserIcon, Settings, LayoutDashboard
 } from 'lucide-react';
@@ -554,6 +555,9 @@ const App: React.FC = () => {
       );
   }
 
+  // --- RENDER STATIC PAGES ---
+  const isStaticPage = [ViewState.ABOUT, ViewState.TERMS, ViewState.PRIVACY, ViewState.CONTACT, ViewState.SUPPORT].includes(currentView);
+
   const navItems = [
     { view: ViewState.HOME, label: 'Bảng tin', icon: Home },
     { view: ViewState.COMMUNITIES, label: 'Cộng đồng', icon: Users },
@@ -568,7 +572,7 @@ const App: React.FC = () => {
       {/* Mobile Header */}
       <div className="lg:hidden bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 px-4 py-3 flex justify-between items-center shadow-sm">
         <div className="flex items-center active:scale-95 transition-transform" onClick={() => setCurrentView(ViewState.HOME)}>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg mr-2 font-heading shadow-md shadow-primary-200">A</div>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-pink-500 flex items-center justify-center text-white font-bold text-2xl mr-2 font-heading shadow-md shadow-primary-200">A</div>
             <span className="font-bold text-xl text-gray-800 font-heading">Asking</span>
         </div>
         <div className="flex items-center space-x-3 relative" ref={notificationRef}>
@@ -709,9 +713,10 @@ const App: React.FC = () => {
                  user ? <ChatSystem currentUser={user} initialConversationId={chatTargetConvId} onClose={() => setCurrentView(ViewState.HOME)} /> : <div className="p-10 text-center animate-fade-in"><p className="text-gray-500 mb-4">Vui lòng đăng nhập để nhắn tin</p><Button onClick={() => setShowAuth(true)}>Đăng nhập ngay</Button></div>
              ) : (
                  <>
-                    {/* Updated: Use KidsGamesHub instead of MemoryGame */}
                     {currentView === ViewState.GAMES && <KidsGamesHub />}
                     {currentView === ViewState.AI_ASSISTANT && <ChatAssistant />}
+                    {isStaticPage && <StaticPage page={currentView} onBack={() => setCurrentView(ViewState.HOME)} />}
+                    
                     {currentView === ViewState.COMMUNITIES && (
                          <div className="animate-fade-in-up">
                              <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold text-gray-800 font-heading">Khám phá cộng đồng</h2><Button onClick={handleCheckCreateCommunity} variant="outline" size="sm">Tạo nhóm mới</Button></div>
@@ -742,6 +747,21 @@ const App: React.FC = () => {
                         <h3 className="text-center font-bold text-gray-800 text-lg mb-2 font-heading">Cần lời khuyên gấp?</h3>
                         <p className="text-center text-gray-500 text-sm mb-4 leading-relaxed">Mẹ Thông Thái AI luôn sẵn sàng trả lời mọi thắc mắc của bạn 24/7 về sức khỏe, dinh dưỡng và nuôi dạy bé.</p>
                         <Button onClick={() => setCurrentView(ViewState.AI_ASSISTANT)} className="w-full !bg-violet-100 hover:!bg-violet-200 !text-indigo-600 shadow-none font-bold active:scale-95">Chat ngay</Button>
+                    </div>
+                </div>
+
+                {/* NEW FOOTER SECTION */}
+                <div className="pt-4 border-t border-gray-200">
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-400 font-medium mb-3">
+                        <button onClick={() => setCurrentView(ViewState.ABOUT)} className="hover:underline hover:text-gray-600">Giới thiệu</button>
+                        <button onClick={() => setCurrentView(ViewState.TERMS)} className="hover:underline hover:text-gray-600">Điều khoản sử dụng</button>
+                        <button onClick={() => setCurrentView(ViewState.PRIVACY)} className="hover:underline hover:text-gray-600">Chính sách bảo mật</button>
+                        <button onClick={() => setCurrentView(ViewState.CONTACT)} className="hover:underline hover:text-gray-600">Liên hệ quảng cáo</button>
+                        <button onClick={() => setCurrentView(ViewState.SUPPORT)} className="hover:underline hover:text-gray-600">Hỗ trợ</button>
+                    </div>
+                    <div className="flex items-center text-xs text-gray-400">
+                        <span className="font-heading font-bold text-gray-500 mr-1">Asking</span> 
+                        <span>© 2025 Mom & Kids Community</span>
                     </div>
                 </div>
             </div>

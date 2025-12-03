@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, RefreshCw, Star, Music, Check, X, 
@@ -49,27 +48,31 @@ const Confetti = () => (
 );
 
 // --- SHARED WRAPPER ---
+// Đã sửa: Chuyển từ fixed inset-0 sang relative layout
 const GameWrapper = ({ title, color, bg, onBack, onReset, children, isWon }: any) => (
-  <div className={`fixed inset-0 z-[100] flex flex-col bg-white overflow-hidden animate-fade-in`}>
+  <div className={`w-full h-[80vh] md:h-[85vh] flex flex-col bg-white overflow-hidden animate-fade-in rounded-3xl shadow-2xl border-4 border-white relative transform transition-all`}>
     {isWon && <Confetti />}
     {/* Header */}
     <div className={`${bg} p-4 flex justify-between items-center shadow-lg relative z-10 transition-colors duration-500`}>
-      <button onClick={onBack} className="bg-white/30 p-3 rounded-full text-white hover:scale-110 transition-transform active:scale-95">
-        <ArrowLeft size={32} strokeWidth={3} />
+      <button onClick={onBack} className="bg-white/30 p-2 md:p-3 rounded-full text-white hover:scale-110 transition-transform active:scale-95 shadow-sm">
+        <ArrowLeft size={24} strokeWidth={3} />
       </button>
-      <h2 className="text-2xl md:text-3xl font-bold text-white font-heading drop-shadow-md tracking-wide animate-pop-in">{title}</h2>
-      <button onClick={onReset} className="bg-white/30 p-3 rounded-full text-white hover:rotate-180 transition-transform duration-500 active:scale-95">
-        <RefreshCw size={32} strokeWidth={3} />
+      <h2 className="text-xl md:text-3xl font-bold text-white font-heading drop-shadow-md tracking-wide animate-pop-in truncate px-2">{title}</h2>
+      <button onClick={onReset} className="bg-white/30 p-2 md:p-3 rounded-full text-white hover:rotate-180 transition-transform duration-500 active:scale-95 shadow-sm">
+        <RefreshCw size={24} strokeWidth={3} />
       </button>
     </div>
     
     {/* Body */}
-    <div className="flex-1 overflow-y-auto bg-gray-50 flex flex-col items-center justify-center p-4 relative">
+    <div className="flex-1 overflow-y-auto bg-[#f0f9ff] flex flex-col items-center justify-center p-2 md:p-4 relative">
       {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none" 
-           style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+      <div className="absolute inset-0 opacity-10 pointer-events-none" 
+           style={{ 
+               backgroundImage: 'radial-gradient(#3b82f6 2px, transparent 2px)', 
+               backgroundSize: '24px 24px' 
+           }}>
       </div>
-      <div className="relative z-10 w-full max-w-2xl flex flex-col items-center animate-fade-in-up">
+      <div className="relative z-10 w-full max-w-2xl flex flex-col items-center justify-center h-full">
         {children}
       </div>
     </div>
@@ -109,15 +112,15 @@ const GameColorMatch = ({ onBack }: any) => {
 
   return (
     <GameWrapper title="Tìm Màu Sắc" bg="bg-indigo-500" onBack={onBack} onReset={init} isWon={isWon}>
-      <h3 className="text-3xl font-bold mb-8 text-gray-700 text-center font-heading">
-        Màu <span className={`${target.text} text-4xl uppercase`}>{target.name}</span> ở đâu?
+      <h3 className="text-2xl md:text-3xl font-bold mb-8 text-gray-700 text-center font-heading">
+        Màu <span className={`${target.text} text-3xl md:text-4xl uppercase`}>{target.name}</span> ở đâu?
       </h3>
-      <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-2 gap-4 md:gap-8">
         {colors.map(c => (
           <button 
             key={c.id} 
             onClick={() => handleCheck(c)} 
-            className={`${c.hex} w-32 h-32 rounded-3xl shadow-[0_10px_0_rgba(0,0,0,0.1)] active:shadow-none active:translate-y-[10px] hover:scale-105 transition-all border-4 border-white ring-4 ring-gray-100`}
+            className={`${c.hex} w-28 h-28 md:w-32 md:h-32 rounded-3xl shadow-[0_10px_0_rgba(0,0,0,0.1)] active:shadow-none active:translate-y-[10px] transition-all border-4 border-white ring-4 ring-gray-100`}
           />
         ))}
       </div>
@@ -151,7 +154,7 @@ const GameAnimalSounds = ({ onBack }: any) => {
         onClick={() => speak(target.sound)}
       >
         <Volume2 size={64} className="text-orange-500 mx-auto mb-2" />
-        <h3 className="text-4xl font-bold text-orange-600 font-heading">"{target.sound}"</h3>
+        <h3 className="text-3xl md:text-4xl font-bold text-orange-600 font-heading">"{target.sound}"</h3>
       </div>
       <div className="grid grid-cols-2 gap-6">
         {animals.map(a => (
@@ -161,7 +164,7 @@ const GameAnimalSounds = ({ onBack }: any) => {
               if(a.id === target.id) { setIsWon(true); speak('Chính xác!'); setTimeout(init, 1500); }
               else speak('Chưa đúng đâu');
             }} 
-            className="text-7xl bg-white p-6 rounded-3xl shadow-[0_8px_0_#e5e7eb] active:shadow-none active:translate-y-[8px] hover:scale-105 transition-all border-2 border-gray-100"
+            className="text-6xl md:text-7xl bg-white p-6 rounded-3xl shadow-[0_8px_0_#e5e7eb] active:shadow-none active:translate-y-[8px] hover:scale-105 transition-all border-2 border-gray-100"
           >
             {a.icon}
           </button>
@@ -192,13 +195,13 @@ const GameNumbers = ({ onBack }: any) => {
 
   return (
     <GameWrapper title="Đếm Số" bg="bg-cyan-500" onBack={onBack} onReset={() => setTarget(1)}>
-      <h3 className="text-3xl font-bold mb-10 text-cyan-700 font-heading">Bấm số: <span className="text-6xl text-cyan-500 align-middle ml-2 animate-pulse inline-block">{target}</span></h3>
+      <h3 className="text-2xl md:text-3xl font-bold mb-10 text-cyan-700 font-heading">Bấm số: <span className="text-5xl md:text-6xl text-cyan-500 align-middle ml-2 animate-pulse inline-block">{target}</span></h3>
       <div className="flex gap-4 flex-wrap justify-center">
         {bubbles.map(n => (
           <button 
             key={n} 
             onClick={() => pop(n)} 
-            className={`w-24 h-24 rounded-full bg-gradient-to-br from-cyan-300 to-blue-400 text-white text-5xl font-bold shadow-lg border-4 border-white/50 transition-all duration-300 ${n < target ? 'scale-0 opacity-0' : 'animate-float hover:scale-110 active:scale-90'}`}
+            className={`w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-cyan-300 to-blue-400 text-white text-4xl md:text-5xl font-bold shadow-lg border-4 border-white/50 transition-all duration-300 ${n < target ? 'scale-0 opacity-0' : 'animate-float hover:scale-110 active:scale-90'}`}
             style={{ animationDelay: `${n * 0.2}s` }}
           >
             {n}
@@ -217,10 +220,10 @@ const GameShapes = ({ onBack }: any) => {
     { id: 'triangle', name: 'Tam Giác', css: 'clip-triangle bg-green-400' }
   ];
   const ShapeRender = ({ type, color }: any) => {
-    if (type === 'circle') return <div className={`w-24 h-24 rounded-full ${color} border-4 border-white shadow-md`}></div>;
-    if (type === 'square') return <div className={`w-24 h-24 rounded-xl ${color} border-4 border-white shadow-md`}></div>;
+    if (type === 'circle') return <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full ${color} border-4 border-white shadow-md`}></div>;
+    if (type === 'square') return <div className={`w-20 h-20 md:w-24 md:h-24 rounded-xl ${color} border-4 border-white shadow-md`}></div>;
     if (type === 'triangle') return (
-      <div className="w-0 h-0 border-l-[50px] border-l-transparent border-r-[50px] border-r-transparent border-b-[90px] border-b-green-400 drop-shadow-md transform -translate-y-2"></div>
+      <div className="w-0 h-0 border-l-[40px] md:border-l-[50px] border-l-transparent border-r-[40px] md:border-r-[50px] border-r-transparent border-b-[70px] md:border-b-[90px] border-b-green-400 drop-shadow-md transform -translate-y-2"></div>
     );
     return null;
   };
@@ -238,8 +241,8 @@ const GameShapes = ({ onBack }: any) => {
 
   return (
     <GameWrapper title="Hình Học" bg="bg-purple-500" onBack={onBack} onReset={init} isWon={isWon}>
-      <h3 className="text-3xl font-bold mb-12 text-purple-800 font-heading">Tìm hình: {target.name}</h3>
-      <div className="flex items-end gap-8">
+      <h3 className="text-2xl md:text-3xl font-bold mb-12 text-purple-800 font-heading">Tìm hình: {target.name}</h3>
+      <div className="flex items-end gap-6 md:gap-8">
         {shapes.map(s => (
           <button key={s.id} onClick={() => {
             if(s.id === target.id) { setIsWon(true); speak('Đúng rồi!'); setTimeout(init, 1500); } 
@@ -294,7 +297,7 @@ const GameMemory = ({ onBack }: any) => {
           <button 
             key={c.id} 
             onClick={() => click(c.id)} 
-            className={`w-16 h-20 md:w-24 md:h-32 text-4xl rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.2)] transition-all duration-300 transform active:scale-95 ${
+            className={`w-14 h-16 md:w-24 md:h-32 text-3xl md:text-4xl rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.2)] transition-all duration-300 transform active:scale-95 ${
               flipped.includes(c.id) || solved.includes(c.id) 
                 ? 'bg-white rotate-y-180 border-2 border-pink-200' 
                 : 'bg-pink-400 text-transparent hover:bg-pink-300'
@@ -379,7 +382,7 @@ const GameCount = ({ onBack }: any) => {
       <h3 className="text-2xl font-bold mb-8 text-white font-heading">Có mấy ngôi sao?</h3>
       <div className="flex gap-3 mb-12 bg-white/20 p-6 rounded-3xl backdrop-blur-sm">
         {Array.from({length: num}).map((_, i) => (
-            <Star key={i} size={56} className="text-yellow-300 fill-yellow-300 animate-float drop-shadow-md" style={{animationDelay: `${i*0.2}s`}} />
+            <Star key={i} size={48} className="text-yellow-300 fill-yellow-300 animate-float drop-shadow-md" style={{animationDelay: `${i*0.2}s`}} />
         ))}
       </div>
       <div className="flex gap-4">
@@ -411,8 +414,8 @@ const GameSize = ({ onBack }: any) => {
   
   return (
     <GameWrapper title="To và Nhỏ" bg="bg-teal-500" onBack={onBack} onReset={init} isWon={isWon}>
-      <h3 className="text-3xl font-bold mb-12 text-white font-heading">Con nào {askBig ? 'TO' : 'NHỎ'} hơn?</h3>
-      <div className="flex items-end justify-center gap-16">
+      <h3 className="text-2xl md:text-3xl font-bold mb-12 text-white font-heading">Con nào {askBig ? 'TO' : 'NHỎ'} hơn?</h3>
+      <div className="flex items-end justify-center gap-8 md:gap-16">
         <button onClick={() => !askBig ? (setIsWon(true), speak('Đúng'), setTimeout(init,1500)) : speak('Sai')} className="text-5xl bg-white p-4 rounded-3xl shadow-lg hover:scale-110 active:scale-90 transition-transform transform rotate-[-10deg]">🦁</button>
         <button onClick={() => askBig ? (setIsWon(true), speak('Đúng'), setTimeout(init,1500)) : speak('Sai')} className="text-9xl bg-white p-6 rounded-3xl shadow-lg hover:scale-110 active:scale-90 transition-transform transform rotate-[10deg]">🦁</button>
       </div>
@@ -445,12 +448,12 @@ const GameShadow = ({ onBack }: any) => {
     <GameWrapper title="Tìm Bóng" bg="bg-gray-600" onBack={onBack} onReset={init} isWon={isWon}>
       <div className="flex flex-col items-center gap-10">
         <div className="text-9xl grayscale brightness-0 opacity-40 animate-pulse cursor-pointer transition-transform hover:scale-110" onClick={() => speak(target.name)}>{target.i}</div>
-        <div className="flex gap-6">
+        <div className="flex gap-4 md:gap-6">
           {options.map((it, idx) => (
             <button key={idx} onClick={() => {
                 if(it.i === target.i) { setIsWon(true); speak('Chính xác'); setTimeout(init, 1500); }
                 else speak('Sai rồi');
-            }} className="text-6xl bg-white p-4 rounded-2xl shadow-[0_8px_0_#cbd5e1] active:shadow-none active:translate-y-[8px] hover:scale-110 transition-all">
+            }} className="text-5xl md:text-6xl bg-white p-4 rounded-2xl shadow-[0_8px_0_#cbd5e1] active:shadow-none active:translate-y-[8px] hover:scale-110 transition-all">
               {it.i}
             </button>
           ))}
@@ -482,13 +485,13 @@ const GameQuiz = ({ onBack }: any) => {
 
   return (
     <GameWrapper title="Đố Vui" bg="bg-red-500" onBack={onBack} onReset={init} isWon={isWon}>
-      <div className="bg-white p-10 rounded-[40px] shadow-2xl text-center mb-10 w-72 border-8 border-red-200 animate-pop-in">
-        <div className="text-9xl mb-6 animate-bounce">{q.i}</div>
-        <h3 className="text-2xl font-bold text-red-600 font-heading leading-tight">{q.t}</h3>
+      <div className="bg-white p-8 md:p-10 rounded-[40px] shadow-2xl text-center mb-8 md:mb-10 w-72 border-8 border-red-200 animate-pop-in">
+        <div className="text-8xl md:text-9xl mb-6 animate-bounce">{q.i}</div>
+        <h3 className="text-xl md:text-2xl font-bold text-red-600 font-heading leading-tight">{q.t}</h3>
       </div>
-      <div className="flex gap-10">
-        <button onClick={() => q.a ? (setIsWon(true), speak('Đúng rồi'), setTimeout(init,1500)) : speak('Sai rồi')} className="bg-green-500 text-white p-6 rounded-full shadow-lg hover:scale-110 active:scale-90 transition-transform border-4 border-white"><Check size={48} strokeWidth={4}/></button>
-        <button onClick={() => !q.a ? (setIsWon(true), speak('Đúng rồi'), setTimeout(init,1500)) : speak('Sai rồi')} className="bg-red-600 text-white p-6 rounded-full shadow-lg hover:scale-110 active:scale-90 transition-transform border-4 border-white"><X size={48} strokeWidth={4}/></button>
+      <div className="flex gap-8 md:gap-10">
+        <button onClick={() => q.a ? (setIsWon(true), speak('Đúng rồi'), setTimeout(init,1500)) : speak('Sai rồi')} className="bg-green-500 text-white p-5 md:p-6 rounded-full shadow-lg hover:scale-110 active:scale-90 transition-transform border-4 border-white"><Check className="w-10 h-10 md:w-12 md:h-12" strokeWidth={4}/></button>
+        <button onClick={() => !q.a ? (setIsWon(true), speak('Đúng rồi'), setTimeout(init,1500)) : speak('Sai rồi')} className="bg-red-600 text-white p-5 md:p-6 rounded-full shadow-lg hover:scale-110 active:scale-90 transition-transform border-4 border-white"><X className="w-10 h-10 md:w-12 md:h-12" strokeWidth={4}/></button>
       </div>
     </GameWrapper>
   );
@@ -497,7 +500,10 @@ const GameQuiz = ({ onBack }: any) => {
 // Placeholder for simpler games (reusing logic)
 const GamePlaceholder = ({onBack, title}: any) => (
     <GameWrapper title={title} bg="bg-gray-400" onBack={onBack} onReset={() => {}}>
-        <div className="text-center text-white font-bold text-xl animate-pulse">Đang cập nhật...</div>
+        <div className="text-center text-gray-400 font-bold text-xl animate-pulse flex flex-col items-center">
+            <RefreshCw className="animate-spin mb-2" />
+            Đang cập nhật...
+        </div>
     </GameWrapper>
 );
 

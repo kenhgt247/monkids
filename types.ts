@@ -120,7 +120,13 @@ export enum ViewState {
   COMMUNITY_DETAIL = 'COMMUNITY_DETAIL', 
   PROFILE = 'PROFILE',
   CHAT = 'CHAT', 
-  ADMIN = 'ADMIN' // New view for Admin Dashboard
+  ADMIN = 'ADMIN',
+  // Static Pages
+  ABOUT = 'ABOUT',
+  TERMS = 'TERMS',
+  PRIVACY = 'PRIVACY',
+  CONTACT = 'CONTACT',
+  SUPPORT = 'SUPPORT'
 }
 
 export interface ChatMessage {

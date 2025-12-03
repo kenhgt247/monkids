@@ -1,145 +1,144 @@
 import { ChatMessage } from "../types";
 
-// QUAN TRỌNG: Đã xóa API Key cứng. 
-// Bây giờ code sẽ gọi về /api/chat để dùng key bảo mật trên Vercel.
+// Helper: Fetch with timeout
+const fetchWithTimeout = async (resource: string, options: any = {}, timeout = 15000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  const response = await fetch(resource, {
+    ...options,
+    signal: controller.signal
+  });
+  clearTimeout(id);
+  return response;
+};
 
 export const getOpenAIResponse = async (
   messages: ChatMessage[],
   context: string = 'parenting'
 ): Promise<string> => {
   
+  // 1. Enhanced System Prompt
+  let systemPrompt = "Bạn là 'Mẹ Thông Thái' - trợ lý ảo chuyên về nuôi dạy con, sức khỏe và gia đình. Hãy trả lời ngắn gọn, ấm áp, dùng icon dễ thương. Nếu không biết chắc chắn, hãy khuyên đi khám bác sĩ.";
+  
+  if (context === 'kids_story') {
+      systemPrompt = "Bạn là người kể chuyện cổ tích cho bé. Hãy kể giọng văn vui tươi, bài học ý nghĩa, dùng từ ngữ đơn giản cho bé 3-6 tuổi hiểu.";
+  }
+
+  const apiMessages = [
+      { role: "system", content: systemPrompt },
+      ...messages.map(msg => ({
+          role: msg.role === 'model' ? 'assistant' : 'user',
+          content: msg.text
+      }))
+  ];
+
   try {
-    let systemPrompt = "Bạn là một trợ lý ảo thông thái, dịu dàng và chu đáo tên là 'Mẹ Thông Thái' (Wise Mom). Bạn chuyên giúp đỡ các bậc phụ huynh về kiến thức nuôi dạy con, sức khỏe mẹ và bé, dinh dưỡng và giáo dục sớm. Hãy trả lời bằng tiếng Việt, giọng văn thân thiện, đồng cảm và khuyến khích. Dùng các emoji dễ thương.";
-    
-    if (context === 'kids_story') {
-        systemPrompt = "Bạn là một người kể chuyện cổ tích tuyệt vời cho trẻ em. Hãy kể những câu chuyện ngắn, mang tính giáo dục, nhân văn, giọng kể vui tươi, hấp dẫn. Dùng từ ngữ đơn giản phù hợp với trẻ mầm non.";
-    }
-
-    // Chuẩn bị lịch sử chat cho OpenAI
-    const apiMessages = [
-        { role: "system", content: systemPrompt },
-        ...messages.map(msg => ({
-            role: msg.role === 'model' ? 'assistant' : 'user',
-            content: msg.text
-        }))
-    ];
-
-    // GỌI VỀ API SERVERLESS CỦA CHÍNH MÌNH (AN TOÀN)
-    // Đường dẫn tương đối /api/chat sẽ tự động trỏ về Server Vercel hiện tại
-    const response = await fetch("/api/chat", {
+    // 2. Robust API Call
+    const response = await fetchWithTimeout("/api/chat", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo", // Dùng 3.5 cho nhanh và rẻ hơn, ít bị lỗi quota
+        model: "gpt-3.5-turbo",
         messages: apiMessages,
-        temperature: 0.7,
-        max_tokens: 1000
+        temperature: 0.7
       })
     });
 
+    // 3. Status Handling
     if (response.status === 404) {
-        return "Lỗi cấu hình: Không tìm thấy API Server. Hãy đảm bảo bạn đang chạy bằng 'vercel dev' (Local) hoặc đã deploy lên Vercel.";
+        console.error("API Route not found.");
+        return "⚠️ Lỗi kết nối: Không tìm thấy máy chủ AI. Nếu chạy Local, hãy dùng 'vercel dev'.";
+    }
+
+    if (response.status === 500) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.error?.code === 'MISSING_API_KEY') {
+            return "⚠️ Lỗi cấu hình: Admin chưa nhập API Key trên Server Vercel.";
+        }
+        return "⚠️ Hệ thống đang bận. Vui lòng thử lại sau.";
     }
 
     const data = await response.json();
 
+    // 4. OpenAI Error Handling
     if (data.error) {
-        console.error("OpenAI Error:", JSON.stringify(data.error, null, 2));
-        if (data.error.code === 'insufficient_quota') return "Hệ thống AI đang tạm ngưng do hết hạn mức sử dụng (Quota exceeded).";
-        if (data.error.message?.includes("Missing")) return "Lỗi Server: Chưa cấu hình API Key trong Environment Variables.";
-        return "Xin lỗi, hệ thống AI đang gặp sự cố kết nối.";
+        console.error("OpenAI Error Detail:", data.error);
+        
+        if (data.error.code === 'insufficient_quota') {
+            return "⚠️ Hệ thống AI đang tạm ngưng do hết hạn mức sử dụng (Hết tiền trong tài khoản OpenAI).";
+        }
+        if (data.error.code === 'invalid_api_key') {
+            return "⚠️ API Key không hợp lệ. Vui lòng kiểm tra lại cấu hình.";
+        }
+        
+        return `⚠️ Có lỗi xảy ra: ${data.error.message}`;
     }
 
-    return data.choices?.[0]?.message?.content || "Xin lỗi, mình chưa nghĩ ra câu trả lời ngay lúc này.";
-  } catch (error) {
-    console.error("Network Error:", error);
-    return "Lỗi kết nối mạng. Vui lòng kiểm tra đường truyền.";
+    return data.choices?.[0]?.message?.content || "Xin lỗi, mình chưa nghĩ ra câu trả lời.";
+
+  } catch (error: any) {
+    console.error("Network/Timeout Error:", error);
+    if (error.name === 'AbortError') {
+        return "⚠️ Phản hồi quá lâu. Vui lòng thử lại câu hỏi ngắn hơn.";
+    }
+    return "⚠️ Lỗi kết nối mạng. Vui lòng kiểm tra đường truyền internet.";
   }
 };
 
-// Hàm mới: Gợi ý trả lời tin nhắn hoặc câu hỏi mở đầu
+// --- Helper Functions (Updated to use fetchWithTimeout logic simplified) ---
+
 export const generateChatSuggestions = async (lastMessages: string[], type: 'reply' | 'starter'): Promise<string[]> => {
     try {
-        let prompt = "";
-        if (type === 'starter') {
-            prompt = "Hãy gợi ý 3 câu hỏi ngắn gọn, thân thiện, lịch sự bằng tiếng Việt để bắt đầu cuộc trò chuyện với một người mẹ khác trong cộng đồng Mom & Kids. Trả lời dưới dạng JSON array string, ví dụ: [\"Chào mẹ, bé nhà bạn mấy tháng rồi?\", \"Rất vui được làm quen!\"]";
-        } else {
-            prompt = `Dựa trên tin nhắn cuối cùng của đối phương: "${lastMessages[lastMessages.length - 1]}". Hãy gợi ý 3 câu trả lời ngắn gọn, tự nhiên, thân thiện bằng tiếng Việt. Trả lời dưới dạng JSON array string.`;
-        }
+        let prompt = type === 'starter' 
+            ? "Gợi ý 3 câu hỏi mở đầu làm quen với mẹ khác (JSON array string)." 
+            : `Gợi ý 3 câu trả lời ngắn cho tin nhắn: "${lastMessages[0]}" (JSON array string).`;
 
         const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "gpt-3.5-turbo",
-                messages: [
-                    { role: "system", content: "Bạn là trợ lý AI giúp gợi ý tin nhắn chat. Chỉ trả về JSON array, không thêm text nào khác." },
-                    { role: "user", content: prompt }
-                ],
-                temperature: 0.7
+                messages: [{ role: "user", content: prompt }]
             })
         });
-
         if (!response.ok) return [];
-
         const data = await response.json();
-        if (data.error) return [];
-        const content = data.choices?.[0]?.message?.content;
-        const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanContent);
-    } catch (e) {
-        return [];
-    }
+        const text = data.choices?.[0]?.message?.content || "[]";
+        return JSON.parse(text.replace(/```json|```/g, '').trim());
+    } catch { return []; }
 };
 
-// Hàm mới: Phân tích bài viết và đưa ra lời khuyên chuyên gia
 export const analyzePostWithAI = async (postContent: string): Promise<string> => {
     try {
         const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "gpt-3.5-turbo",
                 messages: [
-                    { role: "system", content: "Bạn là một chuyên gia tư vấn nuôi dạy con cái và sức khỏe gia đình. Hãy đọc bài viết của người dùng, phân tích vấn đề họ gặp phải và đưa ra lời khuyên ngắn gọn, hữu ích, khoa học (dưới 150 từ). Nếu bài viết chỉ là chia sẻ vui, hãy bình luận chúc mừng hoặc chia sẻ niềm vui." },
+                    { role: "system", content: "Bạn là chuyên gia tư vấn. Hãy đưa ra lời khuyên ngắn gọn cho bài viết sau:" },
                     { role: "user", content: postContent }
-                ],
-                temperature: 0.7
+                ]
             })
         });
-        if (!response.ok) return "Chức năng AI đang bảo trì.";
+        if (!response.ok) return "Không thể phân tích.";
         const data = await response.json();
-        return data.choices?.[0]?.message?.content || "Không thể phân tích lúc này.";
-    } catch (e) {
-        return "Lỗi kết nối AI.";
-    }
+        return data.choices?.[0]?.message?.content || "";
+    } catch { return "Lỗi kết nối AI."; }
 };
 
-// Hàm mới: Gợi ý bình luận cho bài viết
 export const generateCommentSuggestion = async (postContent: string): Promise<string> => {
     try {
         const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "gpt-3.5-turbo",
                 messages: [
-                    { role: "system", content: "Bạn là một thành viên nhiệt tình trong cộng đồng mẹ và bé. Hãy đọc bài viết này và viết một câu bình luận ngắn (dưới 30 từ) thể hiện sự đồng cảm, chia sẻ hoặc khen ngợi một cách tự nhiên." },
+                    { role: "system", content: "Viết 1 bình luận ngắn (dưới 20 từ) chia sẻ hoặc khen ngợi bài viết này:" },
                     { role: "user", content: postContent }
-                ],
-                temperature: 0.8
+                ]
             })
         });
         if (!response.ok) return "";
         const data = await response.json();
-        let content = data.choices?.[0]?.message?.content || "";
-        if (content.startsWith('"') && content.endsWith('"')) {
-            content = content.slice(1, -1);
-        }
-        return content;
-    } catch (e) {
-        return "";
-    }
+        return (data.choices?.[0]?.message?.content || "").replace(/"/g, '');
+    } catch { return ""; }
 };
