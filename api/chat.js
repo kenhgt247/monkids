@@ -1,33 +1,31 @@
-export default async function handler(request) {
-  if (request.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: { message: "Method not allowed" } }),
-      { status: 405 }
-    );
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
+module.exports = async function (req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: { message: 'Method not allowed' } });
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
+
   if (!apiKey) {
-    return new Response(
-      JSON.stringify({ error: { message: "Missing OpenAI API Key" } }),
-      { status: 500 }
-    );
+    return res.status(500).json({ error: { message: 'Missing OpenAI API Key on Server Configuration' } });
   }
 
-  const body = await request.json();
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(req.body)
+    });
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify(body)
-  });
+    const data = await response.json();
+    return res.status(response.status).json(data);
 
-  const data = await response.json();
-
-  return new Response(JSON.stringify(data), {
-    status: response.status
-  });
-}
+  } catch (error) {
+    console.error("Server API Error:", error);
+    return res.status(500).json({ error: { message: 'Internal Server Error' } });
+  }
+};
