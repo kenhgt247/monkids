@@ -352,4 +352,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityNa
             )}
         </div>
     </div>
- 
+  );
+};
+
+export default CreateStoryModal;
