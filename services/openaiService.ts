@@ -85,32 +85,62 @@ export const getOpenAIResponse = async (
 
 // --- Helper Functions ---
 
-export const generateChatSuggestions = async (lastMessages: string[], type: 'reply' | 'starter'): Promise<string[]> => {
-    try {
-        let prompt = type === 'starter' 
-            ? "Gợi ý 3 câu hỏi mở đầu làm quen với mẹ khác (chỉ trả về JSON array string, không có text khác)." 
-            : `Gợi ý 3 câu trả lời ngắn cho tin nhắn: "${lastMessages[0]}" (chỉ trả về JSON array string, không có text khác).`;
+// ... (imports)
 
-        const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                messages: [{ role: "user", content: prompt }]
-            })
-        });
+// ... (fetchWithTimeout helper)
+
+export const getOpenAIResponse = async (
+  messages: ChatMessage[],
+  context: string = 'parenting'
+): Promise<string> => {
+  // ... (system prompt setup)
+
+  try {
+    const response = await fetchWithTimeout("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages: apiMessages,
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+        let errorMessage = `Lỗi kết nối (${response.status})`;
         
-        if (!response.ok) return [];
-        const data = await response.json();
-        const text = data.choices?.[0]?.message?.content || "[]";
-        // Clean markdown code blocks if present
-        const jsonStr = text.replace(/```json|```/g, '').trim();
-        return JSON.parse(jsonStr);
-    } catch (e) {
-        console.error("Auto-suggest error:", e);
-        return []; 
+        try {
+            const errorData = await response.json();
+            if (errorData.error) {
+                errorMessage = `⚠️ ${errorData.error.message || errorData.error.code || 'Lỗi không xác định'}`;
+            }
+        } catch (e) {
+            // Nếu parse JSON thất bại, lấy text để xem lỗi gì (ví dụ HTML lỗi)
+            const text = await response.text();
+            console.error("API Raw Error:", text);
+            
+            if (text.includes("<!DOCTYPE html>")) {
+                errorMessage = `⚠️ Lỗi Server (${response.status}). Có thể do Code Server bị lỗi (Check Terminal).`;
+            } else {
+                errorMessage = `⚠️ Lỗi Server: ${text.substring(0, 50)}...`;
+            }
+        }
+        
+        console.error("API Error:", errorMessage);
+        return errorMessage;
     }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "Xin lỗi, mình chưa nghĩ ra câu trả lời.";
+
+  } catch (error: any) {
+    // ... (error handling)
+    console.error("Client Error:", error);
+    return "⚠️ Lỗi kết nối mạng hoặc Timeout.";
+  }
 };
 
+// ... (rest of helper functions)
 export const analyzePostWithAI = async (postContent: string): Promise<string> => {
     try {
         const response = await fetch("/api/chat", {
