@@ -30,34 +30,27 @@ const callAIEndpoint = async (messages: any[], temperature: number = 0.7): Promi
             })
         });
 
-        // Xử lý các trường hợp lỗi từ Server
-        if (!response.ok) {
-            let errorMsg = `Lỗi kết nối (${response.status})`;
-            try {
-                const errorData = await response.json();
-                if (errorData.error) {
-                    // Lỗi cụ thể từ Backend hoặc OpenAI (ví dụ: Hết tiền, Sai Key)
-                    errorMsg = `⚠️ ${errorData.error.message || 'Lỗi API không xác định'}`;
-                }
-            } catch (e) {
-                // Nếu không parse được JSON -> Khả năng cao là lỗi HTML từ Vercel (404, 500, 504)
-                const text = await response.text();
-                console.error("Non-JSON Response:", text);
-                
-                if (response.status === 404) errorMsg = "⚠️ Không tìm thấy API (404). Hãy chắc chắn bạn đang chạy 'vercel dev'.";
-                else if (response.status === 504) errorMsg = "⚠️ Server Timeout (504). OpenAI phản hồi quá lâu.";
-                else errorMsg = `⚠️ Lỗi Server (${response.status}). Vui lòng kiểm tra Console.`;
-            }
-            throw new Error(errorMsg);
+      // ... (phần đầu giữ nguyên)
+
+    if (response.status === 500) {
+        let serverMsg = "Lỗi nội bộ không xác định";
+        let errorCode = 500;
+        
+        try {
+            const errorData = await response.json();
+            serverMsg = errorData.error?.message || serverMsg;
+            errorCode = errorData.error?.code || 500;
+        } catch (e) {
+            // Nếu không parse được JSON, có thể server trả về HTML lỗi (Vercel Error Page)
+            const text = await response.text();
+            console.error("Non-JSON 500 Response:", text); // Xem lỗi này trong F12 Console
+            serverMsg = "Server crash (Check console)";
         }
-
-        return await response.json();
-
-    } catch (error: any) {
-        console.error("AI Service Error:", error);
-        if (error.name === 'AbortError') throw new Error("⚠️ Phản hồi quá lâu (Timeout).");
-        throw error; // Ném lỗi ra để hàm gọi xử lý hiển thị
+        
+        return `⚠️ Lỗi Server (${errorCode}): ${serverMsg}`;
     }
+
+// ... (phần sau giữ nguyên)
 };
 
 // 3. Chat Chính: Mẹ Thông Thái

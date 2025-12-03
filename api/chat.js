@@ -1,9 +1,9 @@
 // api/chat.js
-// Vercel Serverless Function (Node.js) - ESM Version
-import https from 'node:https';
-import { Buffer } from 'node:buffer';
+// Vercel Serverless Function (Node.js) - Uses native 'https' module for maximum compatibility.
 
-export default async function handler(req, res) {
+const https = require('https');
+
+module.exports = async (req, res) => {
   // 1. CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -55,56 +55,43 @@ export default async function handler(req, res) {
     }
   };
 
-  // 4. Execute HTTPS Request
-  await new Promise((resolve) => {
-    const proxyReq = https.request(options, (proxyRes) => {
-      let data = '';
+  // 4. Execute HTTPS Request (No 'fetch' dependency)
+  const proxyReq = https.request(options, (proxyRes) => {
+    let data = '';
 
-      proxyRes.on('data', (chunk) => {
-        data += chunk;
-      });
+    proxyRes.on('data', (chunk) => {
+      data += chunk;
+    });
 
-      proxyRes.on('end', () => {
-        try {
-          // Check if response is JSON
-          let jsonResponse;
-          try {
-             jsonResponse = JSON.parse(data);
-          } catch(e) {
-             // If OpenAI returns non-JSON (e.g. 502 Bad Gateway html), handle it
-             console.error('Non-JSON response from OpenAI:', data);
-             res.status(502).json({ error: { message: 'Lỗi phản hồi từ OpenAI (Bad Gateway)' } });
-             resolve();
-             return;
-          }
-          
-          if (proxyRes.statusCode >= 400) {
-            console.error('OpenAI Error:', jsonResponse);
-            res.status(proxyRes.statusCode).json({
-              error: {
-                code: jsonResponse.error?.code || 'OPENAI_ERROR',
-                message: jsonResponse.error?.message || 'Lỗi từ OpenAI',
-                details: jsonResponse
-              }
-            });
-          } else {
-            res.status(200).json(jsonResponse);
-          }
-        } catch (e) {
-          console.error('Parse Error:', e);
-          res.status(500).json({ error: { message: 'Lỗi xử lý dữ liệu server' } });
+    proxyRes.on('end', () => {
+      try {
+        const jsonResponse = JSON.parse(data);
+        
+        if (proxyRes.statusCode >= 400) {
+          console.error('OpenAI Error:', jsonResponse);
+          return res.status(proxyRes.statusCode).json({
+            error: {
+              code: jsonResponse.error?.code || 'OPENAI_ERROR',
+              message: jsonResponse.error?.message || 'Lỗi từ OpenAI',
+              details: jsonResponse
+            }
+          });
         }
-        resolve();
-      });
-    });
 
-    proxyReq.on('error', (e) => {
-      console.error('Request Error:', e);
-      res.status(500).json({ error: { message: `Lỗi kết nối OpenAI: ${e.message}` } });
-      resolve();
+        return res.status(200).json(jsonResponse);
+      } catch (e) {
+        console.error('Parse Error:', e, data);
+        return res.status(500).json({ error: { message: 'Lỗi xử lý dữ liệu từ OpenAI' } });
+      }
     });
-
-    proxyReq.write(requestData);
-    proxyReq.end();
   });
-}
+
+  proxyReq.on('error', (e) => {
+    console.error('Request Error:', e);
+    return res.status(500).json({ error: { message: `Lỗi kết nối OpenAI: ${e.message}` } });
+  });
+
+  // Write data to request body
+  proxyReq.write(requestData);
+  proxyReq.end();
+};
