@@ -1,86 +1,97 @@
 // api/chat.js
-// Vercel Serverless Function (Node.js 18+)
-// Acts as a robust, production-ready proxy to OpenAI.
+// Vercel Serverless Function (Node.js) - Uses native 'https' module for maximum compatibility.
+
+const https = require('https');
 
 module.exports = async (req, res) => {
-  // --- 1. CORS CONFIGURATION ---
+  // 1. CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*'); 
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // Handle Preflight Request
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
   }
 
-  // --- 2. VALIDATION ---
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: { message: 'Method not allowed. Use POST.' } });
+    return res.status(405).json({ error: { message: 'Method not allowed' } });
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
-
   if (!apiKey) {
-    console.error('SERVER ERROR: OPENAI_API_KEY is missing.');
-    return res.status(500).json({ 
-      error: { 
-        code: 'MISSING_API_KEY',
-        message: 'Server chưa được cấu hình API Key. Vui lòng kiểm tra cài đặt Environment Variables trên Vercel.' 
-      } 
-    });
+    console.error('SERVER: Missing API Key');
+    return res.status(500).json({ error: { code: 'MISSING_API_KEY', message: 'Chưa cấu hình OPENAI_API_KEY' } });
   }
 
+  // 2. Parse Body securely
+  let bodyData;
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    
-    const messages = body.messages || [
-        { role: 'user', content: 'Xin chào' }
-    ];
-
-    // --- 3. CALL OPENAI API ---
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: body.model || 'gpt-3.5-turbo',
-        messages: messages,
-        temperature: body.temperature || 0.7,
-        max_tokens: body.max_tokens || 800,
-      }),
-    });
-
-    const data = await response.json();
-
-    // --- 4. ERROR HANDLING ---
-    if (!response.ok) {
-      console.error('OpenAI API Error:', data);
-      return res.status(response.status).json({ 
-        error: {
-            code: data.error?.code || 'OPENAI_ERROR',
-            message: data.error?.message || 'Lỗi không xác định từ OpenAI',
-            details: data
-        }
-      });
-    }
-
-    // --- 5. SUCCESS ---
-    return res.status(200).json(data);
-
-  } catch (error) {
-    console.error('INTERNAL SERVER ERROR:', error);
-    return res.status(500).json({ 
-      error: { 
-        code: 'INTERNAL_ERROR',
-        message: error.message || 'Lỗi nội bộ Server' 
-      } 
-    });
+    bodyData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    if (!bodyData) throw new Error('Body empty');
+  } catch (e) {
+    return res.status(400).json({ error: { message: 'Invalid JSON body' } });
   }
+
+  const messages = bodyData.messages || [{ role: 'user', content: 'Hello' }];
+
+  // 3. Prepare Request Options
+  const requestData = JSON.stringify({
+    model: 'gpt-3.5-turbo',
+    messages: messages,
+    temperature: 0.7,
+    max_tokens: 800
+  });
+
+  const options = {
+    hostname: 'api.openai.com',
+    path: '/v1/chat/completions',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Length': Buffer.byteLength(requestData)
+    }
+  };
+
+  // 4. Execute HTTPS Request (No 'fetch' dependency)
+  const proxyReq = https.request(options, (proxyRes) => {
+    let data = '';
+
+    proxyRes.on('data', (chunk) => {
+      data += chunk;
+    });
+
+    proxyRes.on('end', () => {
+      try {
+        const jsonResponse = JSON.parse(data);
+        
+        if (proxyRes.statusCode >= 400) {
+          console.error('OpenAI Error:', jsonResponse);
+          return res.status(proxyRes.statusCode).json({
+            error: {
+              code: jsonResponse.error?.code || 'OPENAI_ERROR',
+              message: jsonResponse.error?.message || 'Lỗi từ OpenAI',
+              details: jsonResponse
+            }
+          });
+        }
+
+        return res.status(200).json(jsonResponse);
+      } catch (e) {
+        console.error('Parse Error:', e, data);
+        return res.status(500).json({ error: { message: 'Lỗi xử lý dữ liệu từ OpenAI' } });
+      }
+    });
+  });
+
+  proxyReq.on('error', (e) => {
+    console.error('Request Error:', e);
+    return res.status(500).json({ error: { message: `Lỗi kết nối OpenAI: ${e.message}` } });
+  });
+
+  // Write data to request body
+  proxyReq.write(requestData);
+  proxyReq.end();
 };

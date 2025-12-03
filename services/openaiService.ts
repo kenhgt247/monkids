@@ -1,15 +1,20 @@
 import { ChatMessage } from "../types";
 
 // Helper: Fetch with timeout
-const fetchWithTimeout = async (resource: string, options: any = {}, timeout = 15000) => {
+const fetchWithTimeout = async (resource: string, options: any = {}, timeout = 25000) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
-  const response = await fetch(resource, {
-    ...options,
-    signal: controller.signal
-  });
-  clearTimeout(id);
-  return response;
+  try {
+    const response = await fetch(resource, {
+        ...options,
+        signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
 };
 
 export const getOpenAIResponse = async (
@@ -33,7 +38,7 @@ export const getOpenAIResponse = async (
   ];
 
   try {
-    // 2. Robust API Call
+    // 2. Call Serverless Function
     const response = await fetchWithTimeout("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -44,35 +49,29 @@ export const getOpenAIResponse = async (
       })
     });
 
-    // 3. Status Handling
-    if (response.status === 404) {
-        console.error("API Route not found.");
-        return "⚠️ Lỗi kết nối: Không tìm thấy máy chủ AI. Nếu chạy Local, hãy dùng 'vercel dev'.";
+    // 3. Handle HTTP Errors
+    if (!response.ok) {
+        let errorMessage = `Lỗi kết nối (${response.status})`;
+        
+        try {
+            const errorData = await response.json();
+            // Ưu tiên hiển thị message từ server trả về
+            if (errorData.error) {
+                errorMessage = `⚠️ ${errorData.error.message || errorData.error.code || 'Lỗi không xác định'}`;
+            }
+        } catch (e) {
+            // Nếu không parse được JSON (ví dụ Vercel trả về HTML lỗi 500/504)
+            if (response.status === 504) errorMessage = "⚠️ Server phản hồi quá lâu (Timeout).";
+            else if (response.status === 404) errorMessage = "⚠️ Không tìm thấy API. Hãy đảm bảo bạn đang chạy 'vercel dev'.";
+            else errorMessage = `⚠️ Lỗi Server (${response.status}). Vui lòng kiểm tra Console.`;
+        }
+        
+        console.error("API Error:", errorMessage);
+        return errorMessage;
     }
 
-      if (response.status === 500) {
-        const errorData = await response.json().catch(() => ({}));
-        // HIỂN THỊ LỖI CỤ THỂ TỪ SERVER
-        const serverMsg = errorData.error?.message || "Lỗi nội bộ không xác định";
-        return `⚠️ Lỗi Server (${errorData.error?.code || 500}): ${serverMsg}`;
-    }
-
+    // 4. Success
     const data = await response.json();
-
-    // 4. OpenAI Error Handling
-    if (data.error) {
-        console.error("OpenAI Error Detail:", data.error);
-        
-        if (data.error.code === 'insufficient_quota') {
-            return "⚠️ Hệ thống AI đang tạm ngưng do hết hạn mức sử dụng (Hết tiền trong tài khoản OpenAI).";
-        }
-        if (data.error.code === 'invalid_api_key') {
-            return "⚠️ API Key không hợp lệ. Vui lòng kiểm tra lại cấu hình.";
-        }
-        
-        return `⚠️ Có lỗi xảy ra: ${data.error.message}`;
-    }
-
     return data.choices?.[0]?.message?.content || "Xin lỗi, mình chưa nghĩ ra câu trả lời.";
 
   } catch (error: any) {
@@ -84,13 +83,13 @@ export const getOpenAIResponse = async (
   }
 };
 
-// --- Helper Functions (Updated to use fetchWithTimeout logic simplified) ---
+// --- Helper Functions ---
 
 export const generateChatSuggestions = async (lastMessages: string[], type: 'reply' | 'starter'): Promise<string[]> => {
     try {
         let prompt = type === 'starter' 
-            ? "Gợi ý 3 câu hỏi mở đầu làm quen với mẹ khác (JSON array string)." 
-            : `Gợi ý 3 câu trả lời ngắn cho tin nhắn: "${lastMessages[0]}" (JSON array string).`;
+            ? "Gợi ý 3 câu hỏi mở đầu làm quen với mẹ khác (chỉ trả về JSON array string, không có text khác)." 
+            : `Gợi ý 3 câu trả lời ngắn cho tin nhắn: "${lastMessages[0]}" (chỉ trả về JSON array string, không có text khác).`;
 
         const response = await fetch("/api/chat", {
             method: "POST",
@@ -99,11 +98,17 @@ export const generateChatSuggestions = async (lastMessages: string[], type: 'rep
                 messages: [{ role: "user", content: prompt }]
             })
         });
+        
         if (!response.ok) return [];
         const data = await response.json();
         const text = data.choices?.[0]?.message?.content || "[]";
-        return JSON.parse(text.replace(/```json|```/g, '').trim());
-    } catch { return []; }
+        // Clean markdown code blocks if present
+        const jsonStr = text.replace(/```json|```/g, '').trim();
+        return JSON.parse(jsonStr);
+    } catch (e) {
+        console.error("Auto-suggest error:", e);
+        return []; 
+    }
 };
 
 export const analyzePostWithAI = async (postContent: string): Promise<string> => {
@@ -113,12 +118,12 @@ export const analyzePostWithAI = async (postContent: string): Promise<string> =>
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 messages: [
-                    { role: "system", content: "Bạn là chuyên gia tư vấn. Hãy đưa ra lời khuyên ngắn gọn cho bài viết sau:" },
+                    { role: "system", content: "Bạn là chuyên gia tư vấn. Hãy đưa ra lời khuyên ngắn gọn, hữu ích cho bài viết sau:" },
                     { role: "user", content: postContent }
                 ]
             })
         });
-        if (!response.ok) return "Không thể phân tích.";
+        if (!response.ok) return "Không thể phân tích lúc này.";
         const data = await response.json();
         return data.choices?.[0]?.message?.content || "";
     } catch { return "Lỗi kết nối AI."; }
@@ -131,13 +136,18 @@ export const generateCommentSuggestion = async (postContent: string): Promise<st
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 messages: [
-                    { role: "system", content: "Viết 1 bình luận ngắn (dưới 20 từ) chia sẻ hoặc khen ngợi bài viết này:" },
+                    { role: "system", content: "Viết 1 bình luận ngắn (dưới 20 từ), lịch sự, đồng cảm để trả lời bài viết này:" },
                     { role: "user", content: postContent }
                 ]
             })
         });
         if (!response.ok) return "";
         const data = await response.json();
-        return (data.choices?.[0]?.message?.content || "").replace(/"/g, '');
+        let content = data.choices?.[0]?.message?.content || "";
+        // Remove quotes if present
+        if (content.startsWith('"') && content.endsWith('"')) {
+            content = content.slice(1, -1);
+        }
+        return content;
     } catch { return ""; }
 };
