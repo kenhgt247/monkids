@@ -50,12 +50,11 @@ export const getOpenAIResponse = async (
         return "⚠️ Lỗi kết nối: Không tìm thấy máy chủ AI. Nếu chạy Local, hãy dùng 'vercel dev'.";
     }
 
-    if (response.status === 500) {
+      if (response.status === 500) {
         const errorData = await response.json().catch(() => ({}));
-        if (errorData.error?.code === 'MISSING_API_KEY') {
-            return "⚠️ Lỗi cấu hình: Admin chưa nhập API Key trên Server Vercel.";
-        }
-        return "⚠️ Hệ thống đang bận. Vui lòng thử lại sau.";
+        // HIỂN THỊ LỖI CỤ THỂ TỪ SERVER
+        const serverMsg = errorData.error?.message || "Lỗi nội bộ không xác định";
+        return `⚠️ Lỗi Server (${errorData.error?.code || 500}): ${serverMsg}`;
     }
 
     const data = await response.json();
