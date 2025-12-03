@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ViewState, Post, User, Comment, Community, Notification, Story } from './types';
 import { mockGames } from './services/mockData';
 import PostCard from './components/PostCard';
-import MemoryGame from './pages/MemoryGame';
+import KidsGamesHub from './pages/KidsGamesHub'; 
 import ChatAssistant from './pages/ChatAssistant';
 import { CreatePost } from './components/CreatePost';
 import AuthPage from './pages/AuthPage';
@@ -15,13 +15,14 @@ import CreateCommunityModal from './components/CreateCommunityModal';
 import EditPostModal from './components/EditPostModal';
 import StoryViewer from './components/StoryViewer';
 import ChatSystem from './components/ChatSystem';
+import AdminDashboard from './pages/AdminDashboard'; // Import Admin
 import { 
-  Home, MessageCircle, BookOpen, FileText, Gamepad2, Search, Menu, X, Bell, Sparkles, Plus, LogOut, LogIn, Loader2, Star, Users, ArrowLeft, Heart, Shield, Award, MapPin, Layers, HelpCircle, PenTool, UserPlus, UserCheck, MessageSquare, User as UserIcon
+  Home, MessageCircle, BookOpen, FileText, Gamepad2, Search, Menu, X, Bell, Sparkles, Plus, LogOut, LogIn, Loader2, Star, Users, ArrowLeft, Heart, Shield, Award, MapPin, Layers, HelpCircle, PenTool, UserPlus, UserCheck, MessageSquare, User as UserIcon, Settings, LayoutDashboard
 } from 'lucide-react';
 
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, arrayUnion, increment, getDoc, arrayRemove, where, getDocs, limit, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, arrayUnion, increment, getDoc, arrayRemove, where, getDocs, limit, setDoc, deleteDoc, QuerySnapshot } from 'firebase/firestore';
 import { addPoints, POINTS, createNotification } from './services/userService';
 import { getOrCreateConversation } from './services/chatService';
 
@@ -102,8 +103,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
       if (!user?.id) return;
-      const unsubscribe = onSnapshot(doc(db, "users", user.id), (doc) => {
-          if (doc.exists()) setUser(prev => ({ ...prev, ...doc.data() } as User));
+      const unsubscribe = onSnapshot(doc(db, "users", user.id), (docSnap) => {
+          if (docSnap.exists()) setUser(prev => ({ ...(prev || {}), ...(docSnap.data() || {}) } as User));
       });
       return () => unsubscribe();
   }, [user?.id]);
@@ -112,8 +113,9 @@ const App: React.FC = () => {
   useEffect(() => {
       if (!user?.id) { setNotifications([]); return; }
       const q = query(collection(db, "notifications"), where("toUserId", "==", user.id), limit(20));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshot) => {
           const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+          // Client-side sort to fix index issues
           notifs.sort((a, b) => b.timestamp - a.timestamp);
           setNotifications(notifs);
           setUnreadCount(notifs.filter(n => !n.isRead).length);
@@ -133,7 +135,7 @@ const App: React.FC = () => {
 
   // Communities & Posts
   useEffect(() => {
-      const unsubscribe = onSnapshot(query(collection(db, "communities")), (snapshot) => {
+      const unsubscribe = onSnapshot(query(collection(db, "communities")), (snapshot: QuerySnapshot) => {
           setCommunities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Community)));
       });
       return () => unsubscribe();
@@ -141,7 +143,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     setIsLoading(true);
-    const unsubscribe = onSnapshot(query(collection(db, "posts"), orderBy("timestamp", "desc")), (snapshot) => {
+    const unsubscribe = onSnapshot(query(collection(db, "posts"), orderBy("timestamp", "desc")), (snapshot: QuerySnapshot) => {
         let fetchedPosts: Post[] = snapshot.docs.map(doc => {
             const data = doc.data();
             return { id: doc.id, ...data, isLiked: data.likedBy ? data.likedBy.includes(user?.id || '') : false } as Post;
@@ -157,7 +159,7 @@ const App: React.FC = () => {
   // Stories
   useEffect(() => {
     const q = query(collection(db, "stories"), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshot) => {
         const now = Date.now();
         const rawStories: Story[] = [];
         snapshot.forEach(doc => {
@@ -202,12 +204,18 @@ const App: React.FC = () => {
         }
         const docRef = await addDoc(collection(db, "posts"), newPost);
         await addPoints(user.id, POINTS.CREATE_POST);
-        if (currentView === ViewState.COMMUNITY_DETAIL && activeCommunity) {
-            const currentCommunity = communities.find(c => c.id === activeCommunity.id) || activeCommunity;
-            if (currentCommunity.members) {
-                currentCommunity.members.filter(id => id !== user.id).slice(0, 50).forEach(memberId => createNotification(memberId, 'post', `đã đăng bài viết mới trong ${activeCommunity.name}`, user, docRef.id));
-            }
+        
+        // Notify community members
+        if (currentView === ViewState.COMMUNITY_DETAIL && activeCommunity && activeCommunity.members) {
+             // Basic implementation: Notify first 50 members to avoid spamming quota in this demo
+             activeCommunity.members
+                .filter(mid => mid !== user.id)
+                .slice(0, 50)
+                .forEach(memberId => {
+                    createNotification(memberId, 'post', `đã đăng bài viết mới trong ${activeCommunity.name}`, user, docRef.id);
+                });
         }
+
     } catch (e) { alert("Có lỗi khi đăng bài."); console.error(e); }
   };
 
@@ -384,6 +392,11 @@ const App: React.FC = () => {
 
   if (showAuth) return <AuthPage onLogin={handleLoginSuccess} onCancel={() => setShowAuth(false)} />;
 
+  // --- ADMIN VIEW ---
+  if (currentView === ViewState.ADMIN && user) {
+      return <AdminDashboard currentUser={user} onClose={() => setCurrentView(ViewState.HOME)} />;
+  }
+
   const renderFeed = () => {
       let filteredPosts = posts;
 
@@ -545,6 +558,11 @@ const App: React.FC = () => {
             <span className="font-bold text-xl text-gray-800 font-heading">Asking</span>
         </div>
         <div className="flex items-center space-x-3 relative" ref={notificationRef}>
+            {user && (
+                 <button onClick={() => setCurrentView(ViewState.CHAT)} className="p-2 relative">
+                     <MessageCircle size={24} className="text-gray-600"/>
+                 </button>
+            )}
             <button ref={bellRef} onClick={() => setShowNotifications(!showNotifications)} className="p-2 relative"><Bell size={24} className="text-gray-600" />{unreadCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>}</button>
             {showNotifications && (
                <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in origin-top-right">
@@ -659,6 +677,9 @@ const App: React.FC = () => {
                                {/* Desktop User Menu Dropdown */}
                                <div className="hidden group-hover:block absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in">
                                    <div className="p-2 space-y-1">
+                                       {user.badgeType === 'admin' && (
+                                           <button onClick={(e) => { e.stopPropagation(); setCurrentView(ViewState.ADMIN); }} className="w-full text-left px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-lg flex items-center font-bold"><LayoutDashboard size={16} className="mr-2"/> Admin Panel</button>
+                                       )}
                                        <button onClick={(e) => { e.stopPropagation(); goToProfile(user); }} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center font-medium"><UserIcon size={16} className="mr-2"/> Trang cá nhân</button>
                                        <button onClick={(e) => { e.stopPropagation(); setCurrentView(ViewState.CHAT); }} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center font-medium"><MessageCircle size={16} className="mr-2"/> Tin nhắn</button>
                                        <button onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center font-bold"><LogOut size={16} className="mr-2"/> Đăng xuất</button>
@@ -674,7 +695,8 @@ const App: React.FC = () => {
                  user ? <ChatSystem currentUser={user} initialConversationId={chatTargetConvId} onClose={() => setCurrentView(ViewState.HOME)} /> : <div className="p-10 text-center"><p className="text-gray-500 mb-4">Vui lòng đăng nhập để nhắn tin</p><Button onClick={() => setShowAuth(true)}>Đăng nhập ngay</Button></div>
              ) : (
                  <>
-                    {currentView === ViewState.GAMES && <MemoryGame />}
+                    {/* Updated: Use KidsGamesHub instead of MemoryGame */}
+                    {currentView === ViewState.GAMES && <KidsGamesHub />}
                     {currentView === ViewState.AI_ASSISTANT && <ChatAssistant />}
                     {currentView === ViewState.COMMUNITIES && (
                          <div className="animate-fade-in">

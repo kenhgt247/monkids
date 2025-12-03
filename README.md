@@ -61,7 +61,43 @@ Nếu không làm bước này, Chat AI sẽ báo lỗi "Missing API Key".
 
 ---
 
-## 🛠 Tính năng chính
+## 👑 3. Hướng dẫn Quản trị viên (Admin Dashboard)
+
+Hệ thống có một trang quản trị chuyên nghiệp dành riêng cho Admin để quản lý người dùng, nội dung và cài đặt hệ thống.
+
+### Cách 1: Tự thăng cấp mình thành Admin (Lần đầu tiên)
+Vì hệ thống mới chưa có Admin, bạn cần can thiệp vào Database để cấp quyền cho chính mình:
+
+1. Đăng nhập vào Website bằng tài khoản của bạn.
+2. Truy cập [Firebase Console](https://console.firebase.google.com/).
+3. Vào mục **Firestore Database** (bên trái).
+4. Chọn collection **users**.
+5. Tìm Document có chứa email của bạn.
+6. Sửa trường `badgeType` thành giá trị: `'admin'`.
+7. (Tùy chọn) Sửa trường `badge` thành `'Quản trị viên'`.
+8. Quay lại trang web và tải lại trang (F5).
+
+### Cách 2: Truy cập trang Admin
+Sau khi đã có quyền Admin:
+1. Rê chuột vào **Avatar** của bạn ở góc phải trên cùng (Header).
+2. Trong menu thả xuống, nhấn vào nút **"Admin Panel"** (Màu tím).
+
+### Các tính năng trong Admin Dashboard:
+- **Tổng quan:** Xem thống kê User, Bài viết, Cộng đồng.
+- **Người dùng:** 
+  - Xem danh sách tất cả thành viên.
+  - **Khóa tài khoản (Ban):** Chặn người dùng vi phạm.
+  - **Thăng chức:** Chuyển người dùng thường thành Admin, Chuyên gia (Expert), VIP ngay trên giao diện.
+- **Nội dung:** Xem và xóa nhanh các bài viết vi phạm.
+- **Cài đặt:** 
+  - Đổi tên trang web, mô tả SEO.
+  - Đổi màu chủ đạo.
+  - Bật/tắt Chat AI.
+  - Cấu hình điểm thưởng (Ví dụ: Tăng điểm khi đăng bài).
+
+---
+
+## 🛠 Tính năng chính khác
 - **Bảng tin (Newsfeed):** Xem bài viết, video, ảnh.
 - **Tương tác:** Like, Bình luận, Chia sẻ, Theo dõi.
 - **Cộng đồng:** Tạo nhóm, tham gia nhóm.

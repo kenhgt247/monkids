@@ -1,3 +1,5 @@
+
+
 import { db } from "./firebase";
 import { doc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { User } from "../types";
@@ -31,7 +33,8 @@ export const addPoints = async (userId: string, amount: number): Promise<boolean
         if (amount < 0) {
             const userSnap = await getDoc(userRef);
             if (userSnap.exists()) {
-                const currentPoints = userSnap.data().points || 0;
+                const userData = userSnap.data() as User;
+                const currentPoints = userData.points || 0;
                 if (currentPoints + amount < 0) {
                     return false; // Không đủ điểm
                 }
@@ -46,7 +49,7 @@ export const addPoints = async (userId: string, amount: number): Promise<boolean
         // 2. Kiểm tra xem có cần update Badge không
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-            const userData = userSnap.data();
+            const userData = userSnap.data() as User;
             const currentPoints = userData.points || 0;
             const { badge, type } = getBadgeFromPoints(currentPoints);
 
@@ -63,6 +66,15 @@ export const addPoints = async (userId: string, amount: number): Promise<boolean
         console.error("Lỗi cập nhật điểm:", error);
         return false;
     }
+};
+
+// Hàm cập nhật Role cho Admin
+export const updateUserRole = async (userId: string, badgeType: User['badgeType'], badgeTitle: string) => {
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
+        badgeType: badgeType,
+        badge: badgeTitle
+    });
 };
 
 // Hàm tạo thông báo

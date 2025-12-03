@@ -15,6 +15,7 @@ export interface User {
   role?: 'Bố' | 'Mẹ' | 'Khác';
   gender?: 'Nam' | 'Nữ';
   coverUrl?: string;
+  isBanned?: boolean; // New field for ban status
 }
 
 export interface Community {
@@ -82,6 +83,7 @@ export interface Game {
   description: string;
   thumbnail: string;
   type: 'memory' | 'quiz' | 'coloring';
+  color?: string; // Tailwind color classes
 }
 
 // --- CHAT TYPES ---
@@ -117,7 +119,8 @@ export enum ViewState {
   COMMUNITIES = 'COMMUNITIES', 
   COMMUNITY_DETAIL = 'COMMUNITY_DETAIL', 
   PROFILE = 'PROFILE',
-  CHAT = 'CHAT', // New view for messaging
+  CHAT = 'CHAT', 
+  ADMIN = 'ADMIN' // New view for Admin Dashboard
 }
 
 export interface ChatMessage {
@@ -140,4 +143,24 @@ export interface Notification {
   isRead: boolean;
   createdAt: any; 
   timestamp: number;
+}
+
+// --- ADMIN & SYSTEM TYPES ---
+export interface SystemSettings {
+  siteName: string;
+  description: string;
+  primaryColor: string;
+  enableAI: boolean;
+  enableAds: boolean;
+  maintenanceMode: boolean;
+  contactEmail: string;
+  pointsPerPost: number;
+  pointsPerComment: number;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  totalPosts: number;
+  totalCommunities: number;
+  totalPointsDistributed: number;
 }

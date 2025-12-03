@@ -1,7 +1,9 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Conversation, Message } from '../types';
 import { db } from '../services/firebase';
-import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, limit, QuerySnapshot } from 'firebase/firestore';
 import { sendMessage, markConversationAsRead } from '../services/chatService';
 import { generateChatSuggestions } from '../services/openaiService';
 import { uploadFileToStorage } from '../services/uploadService';
@@ -39,7 +41,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, initialConversatio
             where("participantIds", "array-contains", currentUser.id)
         );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshot) => {
             const convs = snapshot.docs.map(doc => doc.data() as Conversation);
             // Sắp xếp tin nhắn mới nhất lên đầu
             convs.sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
@@ -62,7 +64,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, initialConversatio
             limit(50)
         );
 
-        const unsubscribe = onSnapshot(q, async (snapshot) => {
+        const unsubscribe = onSnapshot(q, async (snapshot: QuerySnapshot) => {
             const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
             setMessages(msgs);
             
