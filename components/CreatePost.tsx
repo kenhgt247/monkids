@@ -1,14 +1,15 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User, Post } from '../types';
-import { Image, Video, FileText, Smile, Send, HelpCircle, PenTool, X, Music, Paperclip, Loader2, AlertCircle, Coins } from 'lucide-react';
+import { Image, Video, FileText, Smile, Send, HelpCircle, PenTool, X, Music, Paperclip, Loader2, AlertCircle, Coins, Link as LinkIcon } from 'lucide-react';
 import Button from './Button';
 import { uploadFileToStorage } from '../services/uploadService';
 
 interface CreatePostProps {
   currentUser: User;
   communityName?: string; // Tên cộng đồng nếu đang đăng trong nhóm
-  onPost: (content: string, title?: string, imageUrl?: string, videoUrl?: string, audioUrl?: string, fileUrl?: string, category?: Post['category'], downloadCost?: number) => void;
+  initialMode?: 'status' | 'qna' | 'blog' | 'document'; // Chế độ mặc định
+  onPost: (content: string, title?: string, imageUrl?: string, videoUrl?: string, audioUrl?: string, fileUrl?: string, category?: Post['category'], downloadCost?: number, linkUrl?: string) => void;
 }
 
 type PostMode = 'status' | 'qna' | 'blog' | 'document';
@@ -18,8 +19,8 @@ const EMOJIS = ['😊', '😂', '🥰', '😭', '😡', '👍', '❤️', '🎉'
 // Đơn giản hóa accept string để đảm bảo hoạt động tốt trên mọi OS/Browser
 const DOCUMENT_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt";
 
-const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onPost }) => {
-  const [mode, setMode] = useState<PostMode>('status');
+export const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, initialMode = 'status', onPost }) => {
+  const [mode, setMode] = useState<PostMode>(initialMode);
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
   const [downloadCost, setDownloadCost] = useState<number>(0); // Mặc định miễn phí
@@ -30,6 +31,10 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onP
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  
+  // Link State
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkInput, setLinkInput] = useState('');
 
   const [showEmoji, setShowEmoji] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -39,6 +44,11 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onP
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
+
+  // Cập nhật mode khi prop initialMode thay đổi (ví dụ khi chuyển trang)
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'audio' | 'document') => {
     setUploadError(null);
@@ -81,7 +91,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onP
   };
 
   const handleSubmit = async () => {
-    if (!content.trim() && !selectedFile && !title.trim()) return;
+    if (!content.trim() && !selectedFile && !title.trim() && !linkInput.trim()) return;
     
     setIsUploading(true);
     setUploadError(null);
@@ -91,12 +101,23 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onP
     let finalVideoUrl = undefined;
     let finalAudioUrl = undefined;
     let finalFileUrl = undefined;
+    let finalLinkUrl = undefined;
 
     if (mode === 'blog') category = 'Blog';
     if (mode === 'qna') category = 'QnA';
     if (mode === 'document') category = 'Document';
     if (fileType === 'document') category = 'Document'; 
     
+    // Handle Link Logic
+    if (linkInput.trim()) {
+        const isVideoLink = linkInput.match(/(youtube\.com|youtu\.be|facebook\.com.*\/videos\/|facebook\.com.*\/watch\/)/);
+        if (isVideoLink) {
+            finalVideoUrl = linkInput;
+        } else {
+            finalLinkUrl = linkInput;
+        }
+    }
+
     try {
         if (selectedFile && fileType) {
             const folder = fileType === 'document' ? 'documents' : 'posts';
@@ -108,14 +129,16 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onP
             if (fileType === 'document') finalFileUrl = downloadUrl;
         }
 
-        onPost(content, title, finalImageUrl, finalVideoUrl, finalAudioUrl, finalFileUrl, category, downloadCost);
+        onPost(content, title, finalImageUrl, finalVideoUrl, finalAudioUrl, finalFileUrl, category, downloadCost, finalLinkUrl);
         
         setContent('');
         setTitle('');
+        setLinkInput('');
         setDownloadCost(0);
         removeFile();
         setShowEmoji(false);
-        setMode('status');
+        setShowLinkInput(false);
+        setMode(initialMode); // Reset về mode mặc định ban đầu
         setIsExpanded(false);
     } catch (error: any) {
         console.error("Upload failed:", error);
@@ -146,12 +169,12 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onP
       if (mode === 'qna') return "Đặt câu hỏi cho cộng đồng các mẹ...";
       if (mode === 'blog') return "Viết nội dung chia sẻ...";
       if (mode === 'document') return "Mô tả tài liệu này...";
-      return `${currentUser.name} ơi, bạn đang nghĩ gì thế?`;
+      return `${currentUser?.name} ơi, bạn đang nghĩ gì thế?`;
   }
 
-  // Updated styling for tabs
+  // Updated styling for tabs - Added font-heading
   const tabStyle = (isActive: boolean) => 
-    `flex-1 py-4 text-sm font-bold flex items-center justify-center space-x-2 transition-all border-b-2 ${
+    `flex-1 py-4 text-sm font-bold flex items-center justify-center space-x-2 transition-all border-b-2 font-heading ${
       isActive 
         ? 'border-primary-500 text-primary-600' 
         : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50'
@@ -205,7 +228,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onP
                             <input 
                                 type="text"
                                 placeholder={mode === 'qna' ? "Tiêu đề câu hỏi..." : mode === 'document' ? "Tên tài liệu..." : "Tiêu đề bài viết..."}
-                                className="w-full font-bold text-lg border-b border-gray-200 focus:border-primary-500 outline-none py-2 bg-transparent"
+                                className="w-full font-bold text-lg border-b border-gray-200 focus:border-primary-500 outline-none py-2 bg-transparent font-heading"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                             />
@@ -234,6 +257,22 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onP
                             onChange={(e) => setContent(e.target.value)}
                             autoFocus
                         />
+
+                        {/* Link Input */}
+                        {showLinkInput && (
+                            <div className="flex items-center space-x-2 bg-gray-50 p-2 rounded-xl border border-gray-200 animate-fade-in">
+                                <LinkIcon size={18} className="text-gray-400 ml-2" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Dán đường dẫn YouTube, Website tại đây..."
+                                    className="flex-1 bg-transparent outline-none text-sm text-blue-600"
+                                    value={linkInput}
+                                    onChange={(e) => setLinkInput(e.target.value)}
+                                    autoFocus
+                                />
+                                <button onClick={() => { setShowLinkInput(false); setLinkInput(''); }} className="p-1 hover:bg-gray-200 rounded-full"><X size={14} /></button>
+                            </div>
+                        )}
 
                         {/* Emoji Picker */}
                         {showEmoji && (
@@ -285,6 +324,9 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onP
                  <button onClick={() => triggerFileInput(videoInputRef)} className="p-2 rounded-full hover:bg-red-50 text-red-600 transition-colors flex items-center space-x-1" disabled={isUploading}>
                     <Video size={20} /> <span className="text-xs font-medium hidden sm:inline">Video</span>
                  </button>
+                 <button onClick={() => setShowLinkInput(!showLinkInput)} className="p-2 rounded-full hover:bg-blue-50 text-blue-500 transition-colors flex items-center space-x-1" disabled={isUploading}>
+                    <LinkIcon size={20} /> <span className="text-xs font-medium hidden sm:inline">Link</span>
+                 </button>
                  <button onClick={() => triggerFileInput(audioInputRef)} className="p-2 rounded-full hover:bg-purple-50 text-purple-600 transition-colors flex items-center space-x-1" disabled={isUploading}>
                     <Music size={20} /> <span className="text-xs font-medium hidden sm:inline">MP3</span>
                  </button>
@@ -298,18 +340,16 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityName, onP
             
             {isExpanded ? (
                  <div className="flex space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => { setIsExpanded(false); setMode('status'); removeFile(); }} disabled={isUploading}>Hủy</Button>
-                    <Button size="sm" onClick={handleSubmit} disabled={(!content.trim() && !title.trim() && !selectedFile) || isUploading}>
-                        {isUploading ? <><Loader2 size={16} className="mr-2 animate-spin" /> Đang tải...</> : <><Send size={16} className="mr-2" /> Đăng bài</>}
+                    <Button variant="ghost" onClick={() => { setIsExpanded(false); removeFile(); }} className="text-gray-500">Hủy</Button>
+                    <Button onClick={handleSubmit} disabled={isUploading || (!content.trim() && !selectedFile && !title.trim() && !linkInput.trim())}>
+                        {isUploading ? <><Loader2 className="animate-spin mr-2" size={18}/> Đang đăng...</> : <><Send size={18} className="mr-2"/> Đăng</>}
                     </Button>
-                </div>
+                 </div>
             ) : (
-                <Button size="sm" onClick={() => setIsExpanded(true)} disabled>Đăng bài</Button>
+                <Button onClick={handleSubmit} disabled={isUploading || (!content.trim() && !selectedFile)} className="bg-primary-500 hover:bg-primary-600 text-white rounded-full px-6 shadow-md shadow-primary-200">
+                     Đăng
+                </Button>
             )}
         </div>
-      </div>
     </div>
-  );
-};
-
-export default CreatePost;
+ 

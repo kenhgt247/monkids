@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Community } from '../types';
 import Button from './Button';
@@ -56,7 +55,7 @@ const CommunityCard: React.FC<CommunityCardProps> = ({ community, isJoined, onJo
             />
         </div>
 
-        <h3 className="font-bold text-lg text-gray-800 mb-1 group-hover:text-primary-600 transition-colors line-clamp-1" title={community.name}>
+        <h3 className="font-bold text-lg text-gray-800 mb-1 group-hover:text-primary-600 transition-colors line-clamp-1 font-heading" title={community.name}>
           {community.name}
         </h3>
         

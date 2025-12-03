@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
-import { getGeminiResponse } from '../services/geminiService';
+import { getOpenAIResponse } from '../services/openaiService';
 import { Send, Bot, User as UserIcon, Sparkles } from 'lucide-react';
 import Button from '../components/Button';
 
@@ -33,7 +33,8 @@ const ChatAssistant: React.FC = () => {
         ? 'kids_story' 
         : 'parenting';
 
-    const responseText = await getGeminiResponse([...messages, userMsg], context);
+    // Gọi API OpenAI thay vì Gemini
+    const responseText = await getOpenAIResponse([...messages, userMsg], context);
     
     setMessages(prev => [...prev, { role: 'model', text: responseText }]);
     setLoading(false);
@@ -47,8 +48,8 @@ const ChatAssistant: React.FC = () => {
           <Bot size={24} />
         </div>
         <div>
-          <h3 className="font-bold text-lg">Trợ lý Mẹ Thông Thái</h3>
-          <p className="text-primary-100 text-xs">Được hỗ trợ bởi Gemini AI</p>
+          <h3 className="font-bold text-lg font-heading">Trợ lý Mẹ Thông Thái</h3>
+          <p className="text-primary-100 text-xs">Được hỗ trợ bởi ChatGPT (OpenAI)</p>
         </div>
         <Sparkles className="ml-auto text-yellow-300 animate-pulse" />
       </div>
@@ -64,7 +65,7 @@ const ChatAssistant: React.FC = () => {
             }`}>
               <div className="flex items-start gap-2">
                  {msg.role === 'model' && <Bot size={16} className="mt-1 text-primary-500 shrink-0" />}
-                 <div className="whitespace-pre-wrap text-sm leading-relaxed">{msg.text}</div>
+                 <div className="whitespace-pre-wrap text-sm leading-relaxed font-sans">{msg.text}</div>
               </div>
             </div>
           </div>
@@ -92,14 +93,14 @@ const ChatAssistant: React.FC = () => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Hỏi về cách chăm bé, hoặc 'kể chuyện cổ tích'..."
-            className="flex-1 border border-gray-200 rounded-full px-4 py-2 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            className="flex-1 border border-gray-200 rounded-full px-4 py-2 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 font-sans"
             disabled={loading}
           />
           <Button onClick={handleSend} disabled={loading} size="sm" className="w-12 h-10 !rounded-full !px-0 flex items-center justify-center">
             <Send size={18} />
           </Button>
         </div>
-        <p className="text-center text-xs text-gray-400 mt-2">
+        <p className="text-center text-[10px] text-gray-400 mt-2 font-sans">
           AI có thể mắc lỗi. Hãy tham khảo ý kiến chuyên gia y tế cho các vấn đề sức khỏe.
         </p>
       </div>

@@ -1,19 +1,21 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Story, User } from '../types';
-import { X, ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send } from 'lucide-react';
+import { getOrCreateConversation, sendMessage } from '../services/chatService';
 
 interface StoryViewerProps {
     groupedStories: { user: User; stories: Story[] }[];
     initialUserIndex: number;
+    currentUser?: User; // Pass current user to enable replying
     onClose: () => void;
 }
 
-const StoryViewer: React.FC<StoryViewerProps> = ({ groupedStories, initialUserIndex, onClose }) => {
+const StoryViewer: React.FC<StoryViewerProps> = ({ groupedStories, initialUserIndex, currentUser, onClose }) => {
     const [currentUserIndex, setCurrentUserIndex] = useState(initialUserIndex);
     const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
     const [progress, setProgress] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
+    const [replyText, setReplyText] = useState('');
 
     const currentUserGroup = groupedStories[currentUserIndex];
     const currentStory = currentUserGroup?.stories[currentStoryIndex];
@@ -23,12 +25,13 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ groupedStories, initialUserIn
 
     useEffect(() => {
         setProgress(0);
+        setReplyText('');
     }, [currentStoryIndex, currentUserIndex]);
 
     useEffect(() => {
         if (!currentStory || isPaused) return;
 
-        let interval: NodeJS.Timeout;
+        let interval: ReturnType<typeof setInterval>;
         const step = 100; // update every 100ms
 
         if (currentStory.mediaType === 'image') {
@@ -84,6 +87,29 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ groupedStories, initialUserIn
             if (percentage >= 100) nextStory();
         }
     };
+
+    const handleSendReply = async () => {
+        if (!replyText.trim() || !currentUser || !currentStory) return;
+        
+        setIsPaused(true); // Pause while sending
+        try {
+            const targetUser = currentUserGroup.user;
+            const convId = await getOrCreateConversation(currentUser, targetUser);
+            await sendMessage(
+                convId, 
+                currentUser.id, 
+                replyText, 
+                'story_reply', 
+                currentStory.mediaType === 'image' ? currentStory.mediaUrl : targetUser.avatar // Use avatar if video (simple fallback)
+            );
+            setReplyText('');
+            alert(`Đã gửi tin nhắn cho ${targetUser.name}`);
+        } catch (e) {
+            console.error("Failed to send reply", e);
+        } finally {
+            setIsPaused(false);
+        }
+    }
 
     if (!currentStory) return null;
 
@@ -179,11 +205,22 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ groupedStories, initialUserIn
                     <ChevronRight className="text-white" />
                 </button>
 
-                {/* Footer Input placeholder (Visual only) */}
-                <div className="absolute bottom-4 left-4 right-4 z-20">
+                {/* Footer Input */}
+                <div className="absolute bottom-4 left-4 right-4 z-30">
                     <div className="flex gap-2">
-                        <input type="text" placeholder="Gửi tin nhắn..." className="bg-transparent border border-white/50 rounded-full px-4 py-2 text-white placeholder-white/70 w-full text-sm focus:outline-none focus:border-white focus:bg-black/20" />
-                        <button className="text-white p-2"><MoreHorizontal /></button>
+                        <input 
+                            type="text" 
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            onFocus={() => setIsPaused(true)}
+                            onBlur={() => setIsPaused(false)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
+                            placeholder={`Gửi tin nhắn cho ${currentUserGroup.user.name}...`} 
+                            className="bg-transparent border border-white/50 rounded-full px-4 py-2 text-white placeholder-white/70 w-full text-sm focus:outline-none focus:border-white focus:bg-black/40 backdrop-blur-sm" 
+                        />
+                        <button onClick={handleSendReply} className="text-white p-2 hover:bg-white/20 rounded-full transition-colors">
+                            <Send size={20} />
+                        </button>
                     </div>
                 </div>
             </div>

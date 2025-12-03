@@ -139,15 +139,15 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onCancel }) => {
             {/* Left Side (Image/Welcome) */}
             <div className="hidden md:flex w-1/2 bg-gradient-to-br from-primary-400 to-primary-600 p-8 flex-col justify-between text-white relative overflow-hidden">
                 <div className="z-10">
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-primary-500 font-bold text-xl mb-4 shadow-lg">M</div>
-                    <h2 className="text-3xl font-bold mb-2">Chào mừng đến với Mom&Kids</h2>
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-primary-500 font-bold text-xl mb-4 shadow-lg font-heading">M</div>
+                    <h2 className="text-3xl font-bold mb-2 font-heading">Chào mừng đến với Mom&Kids</h2>
                     <p className="text-primary-50 opacity-90">Cộng đồng chia sẻ kinh nghiệm, kiến thức và yêu thương dành cho mẹ và bé.</p>
                 </div>
                 <div className="relative z-10 bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
                     <p className="text-sm italic">"Nơi tuyệt vời để học hỏi kinh nghiệm nuôi dạy con cái. Tôi yêu cộng đồng này!"</p>
                     <div className="flex items-center mt-3">
                         <img src="https://picsum.photos/seed/u1/50/50" className="w-8 h-8 rounded-full border-2 border-white mr-2" />
-                        <span className="text-xs font-bold">Mẹ Bỉm Sữa</span>
+                        <span className="text-xs font-bold font-heading">Mẹ Bỉm Sữa</span>
                     </div>
                 </div>
                 {/* Decorative Circles */}
@@ -158,7 +158,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onCancel }) => {
             {/* Right Side (Form) */}
             <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
                 <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold text-gray-800">{isLogin ? 'Đăng Nhập' : 'Đăng Ký Tài Khoản'}</h2>
+                    <h2 className="text-2xl font-bold text-gray-800 font-heading">{isLogin ? 'Đăng Nhập' : 'Đăng Ký Tài Khoản'}</h2>
                     <p className="text-gray-400 text-sm mt-1">
                         {isLogin ? 'Chào mừng bạn quay trở lại!' : 'Tham gia ngay để tích điểm và nhận quà'}
                     </p>

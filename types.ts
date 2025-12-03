@@ -21,6 +21,8 @@ export interface Community {
   memberCount: number;
   members: string[]; // Danh sách ID thành viên
   tags: string[];
+  creatorId?: string; // ID người tạo
+  createdAt?: number; // Thời gian tạo
 }
 
 export interface Comment {
@@ -48,11 +50,13 @@ export interface Post {
   fileUrl?: string; 
   videoUrl?: string; 
   audioUrl?: string;
+  linkUrl?: string; // New field for websites
   likedBy?: string[];
   isLiked?: boolean;
   communityId?: string; // ID cộng đồng nếu bài viết thuộc về nhóm
   communityName?: string; // Tên cộng đồng để hiển thị
   downloadCost?: number; // Số điểm cần để tải tài liệu (0 = miễn phí)
+  visibility?: 'public' | 'private'; // Trạng thái hiển thị
 }
 
 // --- STORY TYPE ---
@@ -75,6 +79,29 @@ export interface Game {
   type: 'memory' | 'quiz' | 'coloring';
 }
 
+// --- CHAT TYPES ---
+export interface Message {
+    id: string;
+    senderId: string;
+    content: string;
+    timestamp: any; // Firestore timestamp
+    createdAt: number;
+    isRead: boolean;
+    type: 'text' | 'image' | 'story_reply';
+    attachmentUrl?: string; // For images or story thumbnails
+}
+
+export interface Conversation {
+    id: string;
+    participantIds: string[];
+    participants: User[]; // Cache user info for display
+    lastMessage: string;
+    lastMessageTimestamp: number;
+    lastSenderId: string;
+    isRead: boolean;
+    unreadCount: Record<string, number>; // Map userId -> count
+}
+
 export enum ViewState {
   HOME = 'HOME',
   QNA = 'QNA',
@@ -82,9 +109,10 @@ export enum ViewState {
   DOCS = 'DOCS',
   GAMES = 'GAMES',
   AI_ASSISTANT = 'AI_ASSISTANT',
-  COMMUNITIES = 'COMMUNITIES', // Danh sách tất cả cộng đồng
-  COMMUNITY_DETAIL = 'COMMUNITY_DETAIL', // Xem chi tiết 1 cộng đồng
-  PROFILE = 'PROFILE', // Trang cá nhân người dùng
+  COMMUNITIES = 'COMMUNITIES', 
+  COMMUNITY_DETAIL = 'COMMUNITY_DETAIL', 
+  PROFILE = 'PROFILE',
+  CHAT = 'CHAT', // New view for messaging
 }
 
 export interface ChatMessage {
@@ -93,7 +121,6 @@ export interface ChatMessage {
   isError?: boolean;
 }
 
-// --- NEW TYPES FOR NOTIFICATIONS ---
 export interface Notification {
   id: string;
   toUserId: string;
@@ -102,10 +129,10 @@ export interface Notification {
     name: string;
     avatar: string;
   };
-  type: 'like' | 'comment' | 'system' | 'award' | 'follow';
+  type: 'like' | 'comment' | 'system' | 'award' | 'follow' | 'post';
   content: string;
   postId?: string;
   isRead: boolean;
-  createdAt: any; // Firestore Timestamp
+  createdAt: any; 
   timestamp: number;
 }

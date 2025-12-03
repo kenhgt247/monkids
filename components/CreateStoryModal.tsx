@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { X, Image, Video, Loader2, Send } from 'lucide-react';
 import Button from './Button';

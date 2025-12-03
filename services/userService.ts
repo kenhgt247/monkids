@@ -1,5 +1,3 @@
-
-
 import { db } from "./firebase";
 import { doc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { User } from "../types";
@@ -70,7 +68,7 @@ export const addPoints = async (userId: string, amount: number): Promise<boolean
 // Hàm tạo thông báo
 export const createNotification = async (
     toUserId: string, 
-    type: 'like' | 'comment' | 'system' | 'award' | 'follow', 
+    type: 'like' | 'comment' | 'system' | 'award' | 'follow' | 'post', 
     content: string, 
     fromUser?: User,
     postId?: string

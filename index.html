@@ -5,12 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mom & Kids Community</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- NHÚNG FONT FREDOKA (Tiêu đề) VÀ NUNITO (Nội dung) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    
     <style>
       body {
-        font-family: 'Quicksand', sans-serif;
+        /* Dùng Nunito làm font mặc định, tăng độ đậm lên 500 cho dễ đọc */
+        font-family: 'Nunito', sans-serif;
         background-color: #fdfbf7;
+        font-weight: 500; 
+        line-height: 1.6; /* Tăng khoảng cách dòng cho thoáng */
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
+      
+      /* Tiêu đề dùng Fredoka */
+      h1, h2, h3, h4, h5, h6 {
+        font-family: 'Fredoka', sans-serif;
+        letter-spacing: 0.02em;
+      }
+
       ::-webkit-scrollbar {
         width: 8px;
       }
@@ -24,11 +40,19 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #94a3b8; 
       }
+      
+      .safe-area-bottom {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
     </style>
     <script>
       tailwind.config = {
         theme: {
           extend: {
+            fontFamily: {
+              'sans': ['Nunito', 'sans-serif'], // Font mặc định cho nội dung
+              'heading': ['Fredoka', 'sans-serif'], // Font cho tiêu đề, nút bấm
+            },
             colors: {
               primary: {
                 50: '#fff1f2',
@@ -67,7 +91,7 @@
   <body>
     <div id="root">
         <!-- Loading state để người dùng không thấy màn hình trắng tinh khi đang tải -->
-        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; color: #f43f5e; font-family: sans-serif;">
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; color: #f43f5e; font-family: 'Nunito', sans-serif; font-weight: 600;">
             <div style="text-align: center;">
                 <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="width: 40px; height: 40px; margin: 0 auto 16px;">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
