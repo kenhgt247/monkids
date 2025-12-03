@@ -7,58 +7,63 @@
 ### Yêu cầu
 Bạn cần máy tính đã cài đặt **Node.js**. (Tải tại: [https://nodejs.org/](https://nodejs.org/))
 
-### Cài đặt & Chạy
+### Cài đặt thư viện
 1. Tải toàn bộ file về một thư mục.
 2. Mở Terminal (CMD) tại thư mục đó.
-3. Chạy lệnh:
+3. Chạy lệnh cài đặt:
    ```bash
    npm init -y
    npm install react react-dom lucide-react @google/genai parcel firebase
+   npm install -g vercel
    ```
-4. Chạy trang web:
+
+### ⚠️ QUAN TRỌNG: Cách chạy để có API Chat GPT
+Bạn **KHÔNG ĐƯỢC** dùng lệnh `parcel index.html` nếu muốn test tính năng Chat AI. Bạn phải dùng **Vercel CLI**.
+
+1. Tạo file `.env.local` ở thư mục gốc, điền Key của bạn vào:
+   ```env
+   OPENAI_API_KEY=sk-proj-xxxx...
+   ```
+2. Chạy dự án bằng lệnh:
    ```bash
-   npx parcel index.html
+   vercel dev
    ```
-5. Truy cập: **http://localhost:1234**
+   *(Nếu nó hỏi link project, cứ nhấn Enter/Yes liên tục).*
+3. Truy cập: **http://localhost:3000** (Không phải 1234).
 
 ---
 
-## 🌐 2. Đưa web lên mạng (Hosting) & Lưu dữ liệu (Database)
+## 🌐 2. Đưa web lên mạng (Hosting) & Cấu hình API
 
-Để trang web chạy online và lưu được bài viết, bạn cần làm 2 bước sau:
+Để tính năng Chat AI hoạt động khi đưa lên mạng, bạn cần cấu hình trên Vercel:
 
-### BƯỚC 1: Tạo Database trên Google Firebase
-1. Truy cập [console.firebase.google.com](https://console.firebase.google.com/).
-2. Đăng nhập Gmail và nhấn **"Create a project"** (Đặt tên là `mom-kids-app`).
-3. Sau khi tạo xong, vào mục **Project Overview**, nhấn vào biểu tượng **Web (</>)**.
-4. Đăng ký app, bạn sẽ nhận được một đoạn mã `firebaseConfig`.
-5. **QUAN TRỌNG:** Copy các dòng trong `firebaseConfig` (apiKey, authDomain...) và dán vào file `services/firebase.ts` trong code của bạn.
-6. Trong menu bên trái Firebase, chọn **Firestore Database** -> **Create Database** -> Chọn **Start in Test mode**. (Để cho phép ghi dữ liệu).
-7. Chọn **Authentication** -> **Get Started** -> Bật **Google** hoặc **Email/Password** để cho phép đăng nhập.
+### BƯỚC 1: Đẩy code lên GitHub
+1. Tạo tài khoản GitHub.
+2. Tạo Repository mới.
+3. Upload toàn bộ code lên đó.
 
-### BƯỚC 2: Đưa web lên mạng bằng Vercel (Miễn phí)
-Cách dễ nhất là thông qua GitHub.
+### BƯỚC 2: Deploy lên Vercel
+1. Truy cập [Vercel.com](https://vercel.com/) và đăng ký bằng GitHub.
+2. Nhấn **"Add New..."** -> **Project**.
+3. Chọn Repository `mom-kids-app` bạn vừa tạo.
+4. Nhấn **Deploy**.
 
-1. **Đẩy code lên GitHub:**
-   - Tạo tài khoản GitHub.
-   - Tạo Repository mới.
-   - Upload toàn bộ code của bạn lên đó.
+### BƯỚC 3: Cấu hình API Key (BẮT BUỘC)
+Nếu không làm bước này, Chat AI sẽ báo lỗi "Missing API Key".
 
-2. **Kết nối Vercel:**
-   - Truy cập [Vercel.com](https://vercel.com/) và đăng ký bằng GitHub.
-   - Nhấn **"Add New..."** -> **Project**.
-   - Chọn Repository `mom-kids-app` bạn vừa tạo.
-   - Nhấn **Deploy**.
-
-Vercel sẽ tự động cài đặt và cung cấp cho bạn một đường link (ví dụ: `mom-kids.vercel.app`). Bạn có thể gửi link này cho mọi người!
+1. Tại trang quản lý project trên Vercel, vào tab **Settings**.
+2. Chọn menu **Environment Variables** (bên trái).
+3. Thêm biến mới:
+   - **Key:** `OPENAI_API_KEY`
+   - **Value:** `sk-proj-xxxxxxxx...` (Dán key OpenAI của bạn vào)
+4. Nhấn **Save**.
+5. **QUAN TRỌNG:** Vào tab **Deployments**, chọn cái trên cùng, nhấn nút **3 chấm (...)** -> **Redeploy** để áp dụng Key mới.
 
 ---
 
 ## 🛠 Tính năng chính
 - **Bảng tin (Newsfeed):** Xem bài viết, video, ảnh.
-- **Tương tác:** Like, Bình luận (Cần đăng nhập).
-- **Đăng bài:** Hỗ trợ đăng Status, Blog (có tiêu đề), Video (YouTube/FB).
+- **Tương tác:** Like, Bình luận, Chia sẻ, Theo dõi.
+- **Cộng đồng:** Tạo nhóm, tham gia nhóm.
 - **Góc Bé vui chơi:** Game lật hình, tài liệu học tập.
-- **Trợ lý AI:** Chat với "Mẹ Thông Thái" (Powered by Gemini AI).
-
-Chúc bạn thành công xây dựng cộng đồng của mình!
+- **Trợ lý AI:** Chat với "Mẹ Thông Thái", Phân tích bài viết, Gợi ý bình luận (Powered by OpenAI).

@@ -32,24 +32,30 @@ export const getOpenAIResponse = async (
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-3.5-turbo", // Dùng 3.5 cho nhanh và rẻ hơn, ít bị lỗi quota
         messages: apiMessages,
         temperature: 0.7,
         max_tokens: 1000
       })
     });
 
+    if (response.status === 404) {
+        return "Lỗi cấu hình: Không tìm thấy API Server. Hãy đảm bảo bạn đang chạy bằng 'vercel dev' (Local) hoặc đã deploy lên Vercel.";
+    }
+
     const data = await response.json();
 
     if (data.error) {
         console.error("OpenAI Error:", JSON.stringify(data.error, null, 2));
-        return "Xin lỗi, hệ thống AI đang bận hoặc chưa cấu hình đúng Key trên Server.";
+        if (data.error.code === 'insufficient_quota') return "Hệ thống AI đang tạm ngưng do hết hạn mức sử dụng (Quota exceeded).";
+        if (data.error.message?.includes("Missing")) return "Lỗi Server: Chưa cấu hình API Key trong Environment Variables.";
+        return "Xin lỗi, hệ thống AI đang gặp sự cố kết nối.";
     }
 
     return data.choices?.[0]?.message?.content || "Xin lỗi, mình chưa nghĩ ra câu trả lời ngay lúc này.";
   } catch (error) {
     console.error("Network Error:", error);
-    return "Lỗi kết nối. Vui lòng kiểm tra mạng.";
+    return "Lỗi kết nối mạng. Vui lòng kiểm tra đường truyền.";
   }
 };
 
@@ -67,7 +73,7 @@ export const generateChatSuggestions = async (lastMessages: string[], type: 'rep
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "gpt-4o-mini",
+                model: "gpt-3.5-turbo",
                 messages: [
                     { role: "system", content: "Bạn là trợ lý AI giúp gợi ý tin nhắn chat. Chỉ trả về JSON array, không thêm text nào khác." },
                     { role: "user", content: prompt }
@@ -75,6 +81,8 @@ export const generateChatSuggestions = async (lastMessages: string[], type: 'rep
                 temperature: 0.7
             })
         });
+
+        if (!response.ok) return [];
 
         const data = await response.json();
         if (data.error) return [];
@@ -93,7 +101,7 @@ export const analyzePostWithAI = async (postContent: string): Promise<string> =>
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "gpt-4o-mini",
+                model: "gpt-3.5-turbo",
                 messages: [
                     { role: "system", content: "Bạn là một chuyên gia tư vấn nuôi dạy con cái và sức khỏe gia đình. Hãy đọc bài viết của người dùng, phân tích vấn đề họ gặp phải và đưa ra lời khuyên ngắn gọn, hữu ích, khoa học (dưới 150 từ). Nếu bài viết chỉ là chia sẻ vui, hãy bình luận chúc mừng hoặc chia sẻ niềm vui." },
                     { role: "user", content: postContent }
@@ -101,6 +109,7 @@ export const analyzePostWithAI = async (postContent: string): Promise<string> =>
                 temperature: 0.7
             })
         });
+        if (!response.ok) return "Chức năng AI đang bảo trì.";
         const data = await response.json();
         return data.choices?.[0]?.message?.content || "Không thể phân tích lúc này.";
     } catch (e) {
@@ -115,7 +124,7 @@ export const generateCommentSuggestion = async (postContent: string): Promise<st
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "gpt-4o-mini",
+                model: "gpt-3.5-turbo",
                 messages: [
                     { role: "system", content: "Bạn là một thành viên nhiệt tình trong cộng đồng mẹ và bé. Hãy đọc bài viết này và viết một câu bình luận ngắn (dưới 30 từ) thể hiện sự đồng cảm, chia sẻ hoặc khen ngợi một cách tự nhiên." },
                     { role: "user", content: postContent }
@@ -123,9 +132,9 @@ export const generateCommentSuggestion = async (postContent: string): Promise<st
                 temperature: 0.8
             })
         });
+        if (!response.ok) return "";
         const data = await response.json();
         let content = data.choices?.[0]?.message?.content || "";
-        // Xóa dấu ngoặc kép nếu có
         if (content.startsWith('"') && content.endsWith('"')) {
             content = content.slice(1, -1);
         }
