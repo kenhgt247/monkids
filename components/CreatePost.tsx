@@ -557,5 +557,3 @@ export const CreatePost: React.FC<CreatePostProps> = ({
     </div>
   );
 };
-
-export default CreatePost;
