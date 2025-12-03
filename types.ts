@@ -10,6 +10,10 @@ export interface User {
   followedCommunities?: string[]; // ID các cộng đồng đã tham gia
   followers?: string[]; // Danh sách ID người theo dõi mình
   following?: string[]; // Danh sách ID người mình đang theo dõi
+  dob?: string;
+  role?: 'Bố' | 'Mẹ' | 'Khác';
+  gender?: 'Nam' | 'Nữ';
+  coverUrl?: string;
 }
 
 export interface Community {
