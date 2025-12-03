@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Post, Community, Game, SystemSettings, AdminStats } from '../types';
 import { getAdminStats, getAllUsers, toggleUserBan, getSystemSettings, saveSystemSettings } from '../services/adminService';
@@ -10,6 +11,7 @@ import {
     LogOut, Search, Trash2, Shield, AlertTriangle, Check, 
     X, Save, Loader2, RefreshCw, Eye, Lock
 } from 'lucide-react';
+import { mockGames } from '../services/mockData';
 
 interface AdminDashboardProps {
     currentUser: User;
@@ -58,16 +60,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
 
     const loadGames = async () => {
         setIsLoading(true);
-        // In a real app, games would be in Firestore. Here we check DB or Mock
-        // For Admin demo, let's assume we pull from a 'games' collection or use mock
-        // We'll simulate fetching from mockData if DB is empty
+        // Try fetching from DB first
         const gSnap = await getDocs(collection(db, "games"));
         if (!gSnap.empty) {
             setGames(gSnap.docs.map(d => ({id: d.id, ...d.data()} as Game)));
         } else {
-             // If DB empty, we might want to seed it from mockData in App.tsx, 
-             // but here let's just show empty or manual add
-             setGames([]); 
+             // If DB empty, fallback to mockGames to show something
+             setGames(mockGames); 
         }
         setIsLoading(false);
     };
@@ -258,6 +257,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
         </div>
     );
 
+    const renderGames = () => (
+        <div className="space-y-6 animate-fade-in">
+             <div className="flex justify-between items-center mb-4">
+                 <h3 className="font-bold text-lg font-heading">Quản lý Games</h3>
+                 <Button size="sm"><Settings size={16} className="mr-2"/> Cấu hình Games</Button>
+             </div>
+             
+             {games.length === 0 ? (
+                 <div className="p-10 text-center bg-white rounded-2xl border border-dashed border-gray-300 text-gray-400">
+                     Chưa có game nào trong hệ thống.
+                 </div>
+             ) : (
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                     {games.map(game => (
+                         <div key={game.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-start space-x-4">
+                             <img src={game.thumbnail} className="w-16 h-16 rounded-xl object-cover bg-gray-100"/>
+                             <div className="flex-1">
+                                 <h4 className="font-bold text-gray-800">{game.title}</h4>
+                                 <p className="text-xs text-gray-500 line-clamp-1">{game.description}</p>
+                                 <div className="mt-2 flex space-x-2">
+                                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${game.color || 'bg-gray-100'}`}>{game.type}</span>
+                                 </div>
+                             </div>
+                             <button className="text-gray-400 hover:text-primary-500"><Settings size={16}/></button>
+                         </div>
+                     ))}
+                 </div>
+             )}
+        </div>
+    );
+
     const renderSettings = () => {
         if (!settings) return <div className="p-10 text-center"><Loader2 className="animate-spin inline"/></div>;
         return (
@@ -386,7 +416,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                     {currentTab === 'overview' && renderOverview()}
                     {currentTab === 'users' && renderUsers()}
                     {currentTab === 'content' && renderContent()}
-                    {currentTab === 'games' && <div className="text-center p-20 text-gray-400">Tính năng quản lý Game đang phát triển...</div>}
+                    {currentTab === 'games' && renderGames()}
                     {currentTab === 'settings' && renderSettings()}
                 </main>
             </div>

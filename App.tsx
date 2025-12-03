@@ -64,6 +64,12 @@ const App: React.FC = () => {
   // Edit Post State
   const [editingPost, setEditingPost] = useState<Post | null>(null);
 
+  // Helper to check admin role case-insensitively
+  const isAdmin = (u: User | null) => {
+      if (!u || !u.badgeType) return false;
+      return ['admin', 'Admin', 'ADMIN'].includes(u.badgeType);
+  };
+
   // Auto-seed communities
   useEffect(() => {
       const seedCommunities = async () => {
@@ -393,7 +399,7 @@ const App: React.FC = () => {
   if (showAuth) return <AuthPage onLogin={handleLoginSuccess} onCancel={() => setShowAuth(false)} />;
 
   // --- ADMIN VIEW ---
-  if (currentView === ViewState.ADMIN && user) {
+  if (currentView === ViewState.ADMIN && user && isAdmin(user)) {
       return <AdminDashboard currentUser={user} onClose={() => setCurrentView(ViewState.HOME)} />;
   }
 
@@ -490,11 +496,20 @@ const App: React.FC = () => {
                             <img src={viewProfileUser.avatar} className="w-32 h-32 rounded-full border-4 border-white shadow-md object-cover bg-white" />
                             <h1 className="text-2xl font-bold text-gray-900 mt-2 font-heading">{viewProfileUser.name} {viewProfileUser.badgeType === 'admin' && <Shield size={18} className="text-red-500 ml-2 inline"/>}</h1>
                             <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200 font-heading mt-1 mb-4">{viewProfileUser.badge}</span>
-                            <div className="flex gap-2">
+                            
+                            {/* Actions Buttons */}
+                            <div className="flex gap-2 flex-wrap justify-center">
                                 {!isMe && user && ( <>
                                     <button onClick={() => handleFollowUser(viewProfileUser.id)} className={`flex items-center space-x-2 px-6 py-2 rounded-full font-bold transition-all shadow-sm font-heading ${isFollowing ? 'bg-gray-100 text-gray-700' : 'bg-primary-500 text-white'}`}>{isFollowing ? <><UserCheck size={18} /> <span>Đang theo dõi</span></> : <><UserPlus size={18} /> <span>Theo dõi</span></>}</button>
                                     <button onClick={() => startChat(viewProfileUser)} className="flex items-center space-x-2 px-6 py-2 rounded-full font-bold transition-all shadow-sm font-heading bg-violet-100 text-violet-600"><MessageCircle size={18} /> <span>Nhắn tin</span></button>
                                 </> )}
+                                
+                                {/* Admin Button for Profile Owner */}
+                                {isMe && isAdmin(user) && (
+                                    <button onClick={() => setCurrentView(ViewState.ADMIN)} className="flex items-center space-x-2 px-6 py-2 rounded-full font-bold transition-all shadow-sm font-heading bg-slate-800 text-white hover:bg-slate-900 border-2 border-slate-700">
+                                        <LayoutDashboard size={18} /> <span>Trang Quản Trị</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
                         <div className="grid grid-cols-3 gap-4 border-t border-gray-100 pt-4 text-center">
@@ -677,7 +692,7 @@ const App: React.FC = () => {
                                {/* Desktop User Menu Dropdown */}
                                <div className="hidden group-hover:block absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in">
                                    <div className="p-2 space-y-1">
-                                       {user.badgeType === 'admin' && (
+                                       {isAdmin(user) && (
                                            <button onClick={(e) => { e.stopPropagation(); setCurrentView(ViewState.ADMIN); }} className="w-full text-left px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-lg flex items-center font-bold"><LayoutDashboard size={16} className="mr-2"/> Admin Panel</button>
                                        )}
                                        <button onClick={(e) => { e.stopPropagation(); goToProfile(user); }} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center font-medium"><UserIcon size={16} className="mr-2"/> Trang cá nhân</button>
