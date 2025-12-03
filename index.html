@@ -2,8 +2,15 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mom & Kids Community</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Asking - Mom & Kids Community</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#f43f5e" />
+    <meta name="description" content="Cộng đồng chia sẻ kinh nghiệm nuôi dạy con, hỏi đáp bác sĩ và vui chơi cùng bé." />
+    <link rel="apple-touch-icon" href="/pwa-192x192.png" />
+    <link rel="icon" type="image/svg+xml" href="/pwa-icon.svg" />
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- NHÚNG FONT FREDOKA (Tiêu đề) VÀ NUNITO (Nội dung) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,6 +26,7 @@
         line-height: 1.6; /* Tăng khoảng cách dòng cho thoáng */
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile */
       }
       
       /* Tiêu đề dùng Fredoka */
@@ -28,14 +36,14 @@
       }
 
       ::-webkit-scrollbar {
-        width: 8px;
+        width: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: #f1f1f1; 
+        background: transparent; 
       }
       ::-webkit-scrollbar-thumb {
         background: #cbd5e1; 
-        border-radius: 4px;
+        border-radius: 10px;
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #94a3b8; 
@@ -43,6 +51,15 @@
       
       .safe-area-bottom {
         padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      /* Custom utility classes */
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
       }
     </style>
     <script>
@@ -70,6 +87,40 @@
                 50: '#f0f9ff',
                 500: '#0ea5e9',
               }
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              fadeInUp: {
+                '0%': { opacity: '0', transform: 'translateY(15px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              popIn: {
+                '0%': { opacity: '0', transform: 'scale(0.9)' },
+                '100%': { opacity: '1', transform: 'scale(1)' },
+              },
+              slideInRight: {
+                '0%': { transform: 'translateX(100%)' },
+                '100%': { transform: 'translateX(0)' },
+              },
+              bounceSubtle: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-5px)' },
+              },
+              heartbeat: {
+                '0%, 100%': { transform: 'scale(1)' },
+                '50%': { transform: 'scale(1.2)' },
+              }
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.3s ease-out',
+              'fade-in-up': 'fadeInUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
+              'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              'slide-in': 'slideInRight 0.3s ease-out',
+              'float': 'bounceSubtle 3s infinite ease-in-out',
+              'heartbeat': 'heartbeat 0.3s ease-in-out',
             }
           }
         }
@@ -83,7 +134,10 @@
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "vite-plugin-pwa": "https://aistudiocdn.com/vite-plugin-pwa@^1.2.0"
   }
 }
 </script>

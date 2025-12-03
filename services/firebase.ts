@@ -1,5 +1,4 @@
-
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -17,7 +16,8 @@ const firebaseConfig = {
 };
 
 // Khởi tạo Firebase
-const app = initializeApp(firebaseConfig);
+// Use named imports directly to avoid errors with namespace import
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 // Khởi tạo các dịch vụ
 const auth = getAuth(app); 
@@ -26,7 +26,7 @@ const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 
 // Xử lý Analytics an toàn (Tránh crash nếu trình duyệt chặn)
-let analytics;
+let analytics: any;
 isSupported().then(yes => {
   if (yes) {
     analytics = getAnalytics(app);

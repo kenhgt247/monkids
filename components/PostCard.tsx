@@ -173,7 +173,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
   const downloadCost = post.downloadCost || 0;
 
   return (
-    <div className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow mb-4 font-sans relative ${isPrivate ? 'bg-gray-50' : ''}`}>
+    <div className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 mb-4 font-sans relative ${isPrivate ? 'bg-gray-50' : ''}`}>
       {isPrivate && (
           <div className="absolute top-4 right-12 text-gray-400 bg-gray-200/50 px-2 py-1 rounded-full text-xs font-bold flex items-center">
               <Lock size={12} className="mr-1" /> Chỉ mình tôi
@@ -187,7 +187,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
                   <MoreHorizontal size={20} />
               </button>
               {showActionMenu && (
-                  <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-100 p-1 min-w-[160px] z-20 animate-fade-in flex flex-col">
+                  <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-100 p-1 min-w-[160px] z-20 animate-pop-in flex flex-col">
                       <button 
                         onClick={() => { onEdit && onEdit(post); setShowActionMenu(false); }}
                         className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-left"
@@ -214,7 +214,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
 
       <div className="flex items-center mb-3 pr-8">
         <div className="relative cursor-pointer" onClick={() => onUserClick && onUserClick(post.user)}>
-            <img src={post.user.avatar} alt={post.user.name} className="w-10 h-10 rounded-full object-cover mr-3 border-2 border-primary-50 p-0.5" />
+            <img src={post.user.avatar} alt={post.user.name} className="w-10 h-10 rounded-full object-cover mr-3 border-2 border-primary-50 p-0.5 hover:scale-105 transition-transform" />
              {post.user.badgeType === 'admin' && (
                 <div className="absolute -bottom-1 -right-0 bg-red-500 text-white rounded-full p-0.5 border-2 border-white mr-3"><Shield size={10} fill="currentColor" /></div>
             )}
@@ -272,7 +272,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
       )}
       {post.audioUrl && (
           <div className="mb-4 p-3 bg-purple-50 rounded-xl border border-purple-100 flex items-center">
-               <div className="w-10 h-10 bg-white text-purple-600 rounded-full flex items-center justify-center mr-3 shadow-sm"><Music size={20} /></div>
+               <div className="w-10 h-10 bg-white text-purple-600 rounded-full flex items-center justify-center mr-3 shadow-sm animate-pulse"><Music size={20} /></div>
                <div className="flex-1">
                    <p className="text-xs font-bold text-purple-700 mb-1 font-heading">File ghi âm / Nhạc</p>
                    <audio src={post.audioUrl} controls className="w-full h-8" />
@@ -280,8 +280,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
           </div>
       )}
       {post.imageUrl && (
-        <div className="mb-4 rounded-xl overflow-hidden max-h-96 w-full shadow-sm bg-gray-50 flex items-center justify-center">
-            <img src={post.imageUrl} alt="Post content" className="max-w-full max-h-96 object-contain" />
+        <div className="mb-4 rounded-xl overflow-hidden max-h-96 w-full shadow-sm bg-gray-50 flex items-center justify-center cursor-pointer" onClick={() => window.open(post.imageUrl, '_blank')}>
+            <img src={post.imageUrl} alt="Post content" className="max-w-full max-h-96 object-contain hover:scale-105 transition-transform duration-500" />
         </div>
       )}
       {post.linkUrl && !embedUrl && (
@@ -322,7 +322,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
       
       {/* AI Analysis Result */}
       {aiAnalysis && (
-          <div className="mb-4 bg-violet-50 rounded-xl p-4 border border-violet-100 relative animate-fade-in">
+          <div className="mb-4 bg-violet-50 rounded-xl p-4 border border-violet-100 relative animate-pop-in">
               <div className="absolute -top-3 left-4 bg-violet-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center shadow-sm">
                   <Sparkles size={10} className="mr-1" /> Lời khuyên từ AI
               </div>
@@ -333,14 +333,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
       <div className="flex items-center justify-between pt-3 border-t border-gray-50 relative">
         <div className="flex space-x-2">
             {post.tags.map(tag => (
-                <span key={tag} className="bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 text-[10px] font-bold px-2 py-1 rounded-md transition-colors cursor-pointer">#{tag}</span>
+                <span key={tag} className="bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 text-[10px] font-bold px-2 py-1 rounded-md transition-colors cursor-pointer hover:scale-105 inline-block">#{tag}</span>
             ))}
         </div>
         <div className="flex items-center space-x-3 text-gray-500 text-sm">
             {/* Ask AI Button */}
             <button 
                 onClick={handleAskAI}
-                className={`flex items-center p-2 rounded-full transition-colors ${isAnalyzing ? 'bg-violet-100 text-violet-600' : 'hover:bg-violet-50 hover:text-violet-600'}`}
+                className={`flex items-center p-2 rounded-full transition-all active:scale-90 ${isAnalyzing ? 'bg-violet-100 text-violet-600' : 'hover:bg-violet-50 hover:text-violet-600'}`}
                 title="Hỏi AI về bài viết này"
                 disabled={isAnalyzing}
             >
@@ -348,24 +348,24 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
                 <span className="hidden sm:inline ml-1 font-medium text-xs">AI</span>
             </button>
 
-            <button onClick={() => onLike(post.id)} className={`flex items-center space-x-1.5 transition-colors group ${post.isLiked ? 'text-pink-500' : 'hover:text-pink-500'}`}>
-                <div className={`p-1.5 rounded-full ${post.isLiked ? 'bg-pink-50' : 'group-hover:bg-pink-50'}`}>
+            <button onClick={() => onLike(post.id)} className={`flex items-center space-x-1.5 transition-colors group active:scale-95 ${post.isLiked ? 'text-pink-500' : 'hover:text-pink-500'}`}>
+                <div className={`p-1.5 rounded-full transition-transform ${post.isLiked ? 'bg-pink-50 scale-110' : 'group-hover:bg-pink-50 group-hover:scale-110'}`}>
                    <Heart size={18} fill={post.isLiked ? "currentColor" : "none"} className={post.isLiked ? "animate-heartbeat" : ""} />
                 </div>
                 <span className="font-medium">{post.likes}</span>
             </button>
-            <button onClick={() => setShowComments(!showComments)} className="flex items-center space-x-1.5 hover:text-blue-500 transition-colors group">
-                <div className="p-1.5 rounded-full group-hover:bg-blue-50"><MessageCircle size={18} /></div>
+            <button onClick={() => setShowComments(!showComments)} className="flex items-center space-x-1.5 hover:text-blue-500 transition-colors group active:scale-95">
+                <div className="p-1.5 rounded-full group-hover:bg-blue-50 group-hover:scale-110 transition-transform"><MessageCircle size={18} /></div>
                 <span className="font-medium">{post.comments.length}</span>
             </button>
              
             {/* Share Button & Menu */}
             <div className="relative" ref={shareMenuRef}>
-                <button onClick={() => setShowShareMenu(!showShareMenu)} className="flex items-center space-x-1.5 hover:text-green-500 transition-colors group">
-                    <div className="p-1.5 rounded-full group-hover:bg-green-50"><Share2 size={18} /></div>
+                <button onClick={() => setShowShareMenu(!showShareMenu)} className="flex items-center space-x-1.5 hover:text-green-500 transition-colors group active:scale-95">
+                    <div className="p-1.5 rounded-full group-hover:bg-green-50 group-hover:scale-110 transition-transform"><Share2 size={18} /></div>
                 </button>
                 {showShareMenu && (
-                    <div className="absolute right-0 bottom-full mb-2 bg-white rounded-xl shadow-xl border border-gray-100 p-2 min-w-[180px] z-20 animate-fade-in flex flex-col space-y-1">
+                    <div className="absolute right-0 bottom-full mb-2 bg-white rounded-xl shadow-xl border border-gray-100 p-2 min-w-[180px] z-20 animate-pop-in flex flex-col space-y-1 origin-bottom-right">
                         <button onClick={() => handleShareClick('facebook')} className="flex items-center space-x-3 w-full p-2 hover:bg-blue-50 rounded-lg text-left text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"><FacebookIcon /> <span>Facebook</span></button>
                         <button onClick={() => handleShareClick('zalo')} className="flex items-center space-x-3 w-full p-2 hover:bg-blue-50 rounded-lg text-left text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"><ZaloIcon /> <span>Zalo</span></button>
                         <button onClick={() => handleShareClick('twitter')} className="flex items-center space-x-3 w-full p-2 hover:bg-gray-100 rounded-lg text-left text-sm font-medium text-gray-700 hover:text-black transition-colors"><XIcon /> <span>X (Twitter)</span></button>
@@ -380,13 +380,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
       </div>
 
       {showComments && (
-          <div className="mt-4 pt-4 border-t border-gray-100 animate-fade-in">
+          <div className="mt-4 pt-4 border-t border-gray-100 animate-fade-in-up">
               <div className="space-y-4 mb-5 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                   {post.comments.length === 0 ? (
                       <p className="text-center text-gray-400 text-sm italic py-2">Chưa có bình luận nào.</p>
                   ) : (
                       post.comments.map(comment => (
-                          <div key={comment.id} className="flex gap-2.5">
+                          <div key={comment.id} className="flex gap-2.5 animate-fade-in">
                               <img src={comment.user.avatar} className="w-8 h-8 rounded-full object-cover border border-gray-100" />
                               <div className="flex-1">
                                   <div className="bg-gray-50 rounded-2xl rounded-tl-none p-3 shadow-sm border border-gray-100/50">
@@ -398,7 +398,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
                                   </div>
                                   <div className="flex items-center mt-1 ml-2 space-x-3">
                                       <span className="text-gray-400 text-[10px]">{comment.createdAt}</span>
-                                      <button onClick={() => onLikeComment && onLikeComment(post.id, comment.id)} className={`text-[10px] font-bold flex items-center space-x-1 transition-colors ${isCommentLiked(comment) ? 'text-pink-500' : 'text-gray-400 hover:text-pink-500'}`}>
+                                      <button onClick={() => onLikeComment && onLikeComment(post.id, comment.id)} className={`text-[10px] font-bold flex items-center space-x-1 transition-colors active:scale-95 ${isCommentLiked(comment) ? 'text-pink-500' : 'text-gray-400 hover:text-pink-500'}`}>
                                           {isCommentLiked(comment) ? 'Đã thích' : 'Thích'}
                                           {(comment.likedBy?.length || 0) > 0 && <span className="ml-0.5 flex items-center"><Heart size={8} fill="currentColor" className="ml-1"/> {comment.likedBy?.length}</span>}
                                       </button>
@@ -423,12 +423,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onCommen
                         <button 
                             onClick={handleMagicComment}
                             disabled={isGeneratingComment}
-                            className="absolute right-9 top-1/2 transform -translate-y-1/2 text-violet-500 hover:text-violet-600 p-1.5 rounded-full hover:bg-violet-50 transition-colors"
+                            className="absolute right-9 top-1/2 transform -translate-y-1/2 text-violet-500 hover:text-violet-600 p-1.5 rounded-full hover:bg-violet-50 transition-colors active:scale-90"
                             title="AI gợi ý bình luận"
                         >
                             {isGeneratingComment ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
                         </button>
-                        <button onClick={handleSubmitComment} disabled={!commentText.trim()} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-primary-500 hover:text-primary-600 disabled:text-gray-300 p-1.5 rounded-full hover:bg-primary-50 transition-colors">
+                        <button onClick={handleSubmitComment} disabled={!commentText.trim()} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-primary-500 hover:text-primary-600 disabled:text-gray-300 p-1.5 rounded-full hover:bg-primary-50 transition-colors active:scale-90">
                             <Send size={16} />
                         </button>
                       </div>

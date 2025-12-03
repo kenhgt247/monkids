@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Community } from '../types';
 import Button from './Button';
@@ -34,20 +35,20 @@ const CommunityCard: React.FC<CommunityCardProps> = ({ community, isJoined, onJo
 
   return (
     <div 
-      className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group flex flex-col h-full"
+      className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 cursor-pointer group flex flex-col h-full"
       onClick={() => onClick(community)}
     >
       <div className="h-24 w-full relative overflow-hidden">
         <img 
           src={community.coverUrl} 
           alt={community.name} 
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         />
         <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
       </div>
 
       <div className="p-4 pt-10 relative flex-1 flex flex-col">
-        <div className="absolute -top-8 left-4 p-1 bg-white rounded-xl shadow-sm">
+        <div className="absolute -top-8 left-4 p-1 bg-white rounded-xl shadow-sm transition-transform group-hover:scale-105">
             <img 
               src={community.avatarUrl} 
               alt={community.name} 
@@ -71,10 +72,10 @@ const CommunityCard: React.FC<CommunityCardProps> = ({ community, isJoined, onJo
         <Button 
             size="sm" 
             variant={isJoined ? "outline" : "primary"}
-            className={`w-full mt-auto flex items-center justify-center transition-all ${
+            className={`w-full mt-auto flex items-center justify-center transition-all active:scale-95 ${
                 isJoined 
                 ? 'bg-gray-100 border-transparent text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200' 
-                : 'bg-primary-500 hover:bg-primary-600 text-white'
+                : 'bg-primary-500 hover:bg-primary-600 text-white shadow-md hover:shadow-lg'
             }`}
             onClick={handleJoinClick}
             disabled={isLoading}

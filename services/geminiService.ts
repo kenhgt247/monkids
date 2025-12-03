@@ -3,15 +3,13 @@ import { ChatMessage } from "../types";
 
 // Note: In a real environment, never expose API keys on the client side without restrictions.
 // We assume process.env.API_KEY is available.
-const apiKey = process.env.API_KEY || ''; 
-
-const ai = new GoogleGenAI({ apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getGeminiResponse = async (
   messages: ChatMessage[],
   context: string = 'parenting'
 ): Promise<string> => {
-  if (!apiKey) {
+  if (!process.env.API_KEY) {
     return "Lỗi: Chưa cấu hình API Key. Vui lòng kiểm tra cài đặt.";
   }
 

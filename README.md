@@ -13,7 +13,7 @@ Bạn cần máy tính đã cài đặt **Node.js**. (Tải tại: [https://node
 3. Chạy lệnh cài đặt:
    ```bash
    npm init -y
-   npm install react react-dom lucide-react @google/genai parcel firebase
+   npm install react react-dom lucide-react @google/genai parcel firebase vite-plugin-pwa
    npm install -g vercel
    ```
 
@@ -30,6 +30,22 @@ Bạn **KHÔNG ĐƯỢC** dùng lệnh `parcel index.html` nếu muốn test tí
    ```
    *(Nếu nó hỏi link project, cứ nhấn Enter/Yes liên tục).*
 3. Truy cập: **http://localhost:3000** (Không phải 1234).
+
+---
+
+## 📱 4. Cài đặt PWA (App trên điện thoại)
+
+Trang web đã được cấu hình PWA để có thể cài đặt như App.
+
+### Bước 1: Tạo Icon cho App
+Hệ thống cần 2 file ảnh PNG trong thư mục `public` (ngang hàng `index.html`) để làm icon trên điện thoại:
+1. `public/pwa-192x192.png` (Kích thước 192x192 px)
+2. `public/pwa-512x512.png` (Kích thước 512x512 px)
+
+*Mẹo: Bạn có thể dùng trang https://favicon.io/favicon-converter/ để tạo nhanh từ logo của bạn.*
+
+### Bước 2: Build & Deploy
+Sau khi đưa lên Vercel, khi truy cập bằng điện thoại (Chrome/Safari), bạn sẽ thấy gợi ý "Add to Home Screen" (Thêm vào màn hình chính). Nhấn vào đó để cài App.
 
 ---
 

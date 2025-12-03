@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ViewState, Post, User, Comment, Community, Notification, Story } from './types';
 import { mockGames } from './services/mockData';
@@ -418,15 +417,15 @@ const App: React.FC = () => {
       if (searchTerm) filteredPosts = filteredPosts.filter(p => p.content.toLowerCase().includes(searchTerm.toLowerCase()) || p.title?.toLowerCase().includes(searchTerm.toLowerCase()));
 
       return (
-        <div className="w-full animate-fade-in pb-20 lg:pb-0">
+        <div key={currentView} className="w-full animate-fade-in-up pb-20 lg:pb-0">
             {currentView === ViewState.HOME && !searchTerm && (
                 <div className="flex space-x-4 mb-8 overflow-x-auto pb-2 scrollbar-hide snap-x">
-                    <div className="flex-shrink-0 w-28 h-40 bg-sky-100 rounded-2xl relative flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-sky-300 snap-center" onClick={() => { if(requireAuth()) setIsCreatingStory(true); }}>
+                    <div className="flex-shrink-0 w-28 h-40 bg-sky-100 rounded-2xl relative flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-sky-300 snap-center transition-transform hover:scale-105 active:scale-95" onClick={() => { if(requireAuth()) setIsCreatingStory(true); }}>
                         <div className="w-10 h-10 rounded-full bg-white text-primary-500 flex items-center justify-center mb-2 shadow-md"><Plus size={24} strokeWidth={3} /></div>
                         <span className="text-xs font-bold text-gray-800 bg-white/50 px-2 py-0.5 rounded-full font-heading">Tạo tin</span>
                     </div>
                     {stories.map((group, idx) => (
-                        <div key={group.user.id} className="flex-shrink-0 w-28 h-40 bg-gray-200 rounded-2xl relative overflow-hidden cursor-pointer shadow-sm snap-center" onClick={() => setViewingStoryUserIdx(idx)}>
+                        <div key={group.user.id} className="flex-shrink-0 w-28 h-40 bg-gray-200 rounded-2xl relative overflow-hidden cursor-pointer shadow-sm snap-center transition-transform hover:scale-105 active:scale-95" onClick={() => setViewingStoryUserIdx(idx)}>
                             <img src={group.stories[0].mediaType === 'image' ? group.stories[0].mediaUrl : group.user.avatar} className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                             <div className="absolute top-2 left-2 p-0.5 rounded-full border-2 border-primary-500 bg-white"><img src={group.user.avatar} className="w-8 h-8 rounded-full" /></div>
@@ -456,7 +455,7 @@ const App: React.FC = () => {
 
             {!searchTerm && currentView === ViewState.HOME && (
                 <div className="flex space-x-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
-                    {['All', 'Status', 'Blog', 'QnA', 'Document'].map(cat => ( <button key={cat} onClick={() => setFeedFilter(cat)} className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors font-heading ${feedFilter === cat ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'}`}>{cat === 'All' ? 'Tất cả' : cat === 'QnA' ? 'Hỏi đáp' : cat === 'Document' ? 'Tài liệu' : cat}</button> ))}
+                    {['All', 'Status', 'Blog', 'QnA', 'Document'].map(cat => ( <button key={cat} onClick={() => setFeedFilter(cat)} className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-all font-heading active:scale-95 ${feedFilter === cat ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'}`}>{cat === 'All' ? 'Tất cả' : cat === 'QnA' ? 'Hỏi đáp' : cat === 'Document' ? 'Tài liệu' : cat}</button> ))}
                 </div>
             )}
 
@@ -477,7 +476,7 @@ const App: React.FC = () => {
                         onEdit={(p) => setEditingPost(p)}
                         onToggleVisibility={handleToggleVisibility}
                     />) 
-                    : <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-300"><p className="text-gray-500">Chưa có bài viết nào.</p></div>}
+                    : <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-300 animate-fade-in"><p className="text-gray-500">Chưa có bài viết nào.</p></div>}
             </div>
         </div>
       )
@@ -488,25 +487,25 @@ const App: React.FC = () => {
       const isMe = user?.id === viewProfileUser.id;
       const isFollowing = user?.following?.includes(viewProfileUser.id);
       return (
-          <div className="w-full animate-fade-in pb-20 lg:pb-0">
-               <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 mb-6">
-                    <div className="h-40 bg-gradient-to-r from-primary-200 to-pink-200 relative"><button onClick={() => setCurrentView(ViewState.HOME)} className="absolute top-4 left-4 bg-white/30 backdrop-blur-md p-2 rounded-full"><ArrowLeft size={24} className="text-gray-800"/></button></div>
+          <div className="w-full animate-fade-in-up pb-20 lg:pb-0">
+               <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 mb-6 relative group">
+                    <div className="h-40 bg-gradient-to-r from-primary-200 to-pink-200 relative"><button onClick={() => setCurrentView(ViewState.HOME)} className="absolute top-4 left-4 bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white/50 transition-colors"><ArrowLeft size={24} className="text-gray-800"/></button></div>
                     <div className="px-6 pb-6 relative">
                         <div className="flex flex-col items-center -mt-16 mb-4">
-                            <img src={viewProfileUser.avatar} className="w-32 h-32 rounded-full border-4 border-white shadow-md object-cover bg-white" />
+                            <img src={viewProfileUser.avatar} className="w-32 h-32 rounded-full border-4 border-white shadow-md object-cover bg-white animate-pop-in" />
                             <h1 className="text-2xl font-bold text-gray-900 mt-2 font-heading">{viewProfileUser.name} {viewProfileUser.badgeType === 'admin' && <Shield size={18} className="text-red-500 ml-2 inline"/>}</h1>
                             <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200 font-heading mt-1 mb-4">{viewProfileUser.badge}</span>
                             
                             {/* Actions Buttons */}
                             <div className="flex gap-2 flex-wrap justify-center">
                                 {!isMe && user && ( <>
-                                    <button onClick={() => handleFollowUser(viewProfileUser.id)} className={`flex items-center space-x-2 px-6 py-2 rounded-full font-bold transition-all shadow-sm font-heading ${isFollowing ? 'bg-gray-100 text-gray-700' : 'bg-primary-500 text-white'}`}>{isFollowing ? <><UserCheck size={18} /> <span>Đang theo dõi</span></> : <><UserPlus size={18} /> <span>Theo dõi</span></>}</button>
-                                    <button onClick={() => startChat(viewProfileUser)} className="flex items-center space-x-2 px-6 py-2 rounded-full font-bold transition-all shadow-sm font-heading bg-violet-100 text-violet-600"><MessageCircle size={18} /> <span>Nhắn tin</span></button>
+                                    <button onClick={() => handleFollowUser(viewProfileUser.id)} className={`flex items-center space-x-2 px-6 py-2 rounded-full font-bold transition-all shadow-sm font-heading active:scale-95 ${isFollowing ? 'bg-gray-100 text-gray-700' : 'bg-primary-500 text-white'}`}>{isFollowing ? <><UserCheck size={18} /> <span>Đang theo dõi</span></> : <><UserPlus size={18} /> <span>Theo dõi</span></>}</button>
+                                    <button onClick={() => startChat(viewProfileUser)} className="flex items-center space-x-2 px-6 py-2 rounded-full font-bold transition-all shadow-sm font-heading bg-violet-100 text-violet-600 hover:bg-violet-200 active:scale-95"><MessageCircle size={18} /> <span>Nhắn tin</span></button>
                                 </> )}
                                 
                                 {/* Admin Button for Profile Owner */}
                                 {isMe && isAdmin(user) && (
-                                    <button onClick={() => setCurrentView(ViewState.ADMIN)} className="flex items-center space-x-2 px-6 py-2 rounded-full font-bold transition-all shadow-sm font-heading bg-slate-800 text-white hover:bg-slate-900 border-2 border-slate-700">
+                                    <button onClick={() => setCurrentView(ViewState.ADMIN)} className="flex items-center space-x-2 px-6 py-2 rounded-full font-bold transition-all shadow-sm font-heading bg-slate-800 text-white hover:bg-slate-900 border-2 border-slate-700 active:scale-95">
                                         <LayoutDashboard size={18} /> <span>Trang Quản Trị</span>
                                     </button>
                                 )}
@@ -529,16 +528,16 @@ const App: React.FC = () => {
       if (!activeCommunity) return null;
       const isJoined = user?.followedCommunities?.includes(activeCommunity.id) || false;
       return (
-          <div className="w-full animate-fade-in pb-20 lg:pb-0">
-              <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 mb-6">
-                  <div className="h-48 md:h-64 relative">
-                      <img src={activeCommunity.coverUrl} className="w-full h-full object-cover" />
+          <div className="w-full animate-fade-in-up pb-20 lg:pb-0">
+              <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 mb-6 group">
+                  <div className="h-48 md:h-64 relative overflow-hidden">
+                      <img src={activeCommunity.coverUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                      <button onClick={() => setCurrentView(ViewState.COMMUNITIES)} className="absolute top-4 left-4 bg-white/20 backdrop-blur-md p-2 rounded-full text-white"><ArrowLeft size={24} /></button>
+                      <button onClick={() => setCurrentView(ViewState.COMMUNITIES)} className="absolute top-4 left-4 bg-white/20 backdrop-blur-md p-2 rounded-full text-white hover:bg-white/30 transition-colors"><ArrowLeft size={24} /></button>
                   </div>
                   <div className="px-6 pb-6 pt-0 relative">
                       <div className="flex flex-col md:flex-row items-start md:items-end -mt-10 mb-4">
-                            <img src={activeCommunity.avatarUrl} className="w-24 h-24 rounded-2xl border-4 border-white shadow-md bg-white object-cover" />
+                            <img src={activeCommunity.avatarUrl} className="w-24 h-24 rounded-2xl border-4 border-white shadow-md bg-white object-cover animate-pop-in" />
                             <div className="mt-4 md:mt-0 md:ml-4 flex-1">
                                 <h1 className="text-2xl font-bold text-gray-900 mb-1 font-heading">{activeCommunity.name}</h1>
                                 <div className="flex items-center text-gray-500 text-sm"><Users size={16} className="mr-1" /> {activeCommunity.memberCount} thành viên</div>
@@ -567,20 +566,20 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#fdfbf7] font-sans text-gray-800">
       {/* Mobile Header */}
-      <div className="lg:hidden bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center" onClick={() => setCurrentView(ViewState.HOME)}>
+      <div className="lg:hidden bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 px-4 py-3 flex justify-between items-center shadow-sm">
+        <div className="flex items-center active:scale-95 transition-transform" onClick={() => setCurrentView(ViewState.HOME)}>
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg mr-2 font-heading shadow-md shadow-primary-200">A</div>
             <span className="font-bold text-xl text-gray-800 font-heading">Asking</span>
         </div>
         <div className="flex items-center space-x-3 relative" ref={notificationRef}>
             {user && (
-                 <button onClick={() => setCurrentView(ViewState.CHAT)} className="p-2 relative">
+                 <button onClick={() => setCurrentView(ViewState.CHAT)} className="p-2 relative hover:bg-gray-100 rounded-full transition-colors active:scale-90">
                      <MessageCircle size={24} className="text-gray-600"/>
                  </button>
             )}
-            <button ref={bellRef} onClick={() => setShowNotifications(!showNotifications)} className="p-2 relative"><Bell size={24} className="text-gray-600" />{unreadCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>}</button>
+            <button ref={bellRef} onClick={() => setShowNotifications(!showNotifications)} className="p-2 relative hover:bg-gray-100 rounded-full transition-colors active:scale-90"><Bell size={24} className="text-gray-600" />{unreadCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>}</button>
             {showNotifications && (
-               <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in origin-top-right">
+               <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-pop-in origin-top-right">
                    <div className="p-3 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center"><h3 className="font-bold text-gray-700 font-heading text-sm">Thông báo</h3>{unreadCount > 0 && <button className="text-[10px] text-primary-600 font-bold hover:underline">Đã đọc hết</button>}</div>
                    <div className="max-h-60 overflow-y-auto custom-scrollbar">
                        {notifications.length === 0 ? <div className="p-4 text-center text-gray-400 text-xs">Chưa có thông báo</div> : notifications.map(notif => (
@@ -620,30 +619,30 @@ const App: React.FC = () => {
         
         {/* Left Sidebar (Desktop) */}
         <div className="hidden lg:block w-64 shrink-0 sticky top-6 max-h-[calc(100vh-48px)] overflow-y-auto custom-scrollbar">
-            <div className="flex items-center mb-8 px-2 cursor-pointer" onClick={() => setCurrentView(ViewState.HOME)}>
+            <div className="flex items-center mb-8 px-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setCurrentView(ViewState.HOME)}>
                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-pink-500 flex items-center justify-center text-white font-bold text-2xl mr-3 font-heading shadow-lg shadow-primary-200">A</div>
                  <span className="font-bold text-2xl text-gray-800 font-heading tracking-tight">Asking</span>
             </div>
             
             <nav className="space-y-1 mb-8">
                 {navItems.map(item => (
-                    <button key={item.view} onClick={() => { setCurrentView(item.view); setSearchTerm(''); setFeedFilter('All'); window.scrollTo(0,0); }} className={`flex items-center space-x-3 w-full px-4 py-3 rounded-xl transition-all font-heading ${currentView === item.view ? 'bg-white text-primary-600 shadow-sm font-bold border border-gray-100' : 'text-gray-500 hover:bg-white hover:text-gray-900 hover:shadow-sm'}`}><item.icon size={20} strokeWidth={currentView === item.view ? 2.5 : 2} /> <span>{item.label}</span></button>
+                    <button key={item.view} onClick={() => { setCurrentView(item.view); setSearchTerm(''); setFeedFilter('All'); window.scrollTo(0,0); }} className={`flex items-center space-x-3 w-full px-4 py-3 rounded-xl transition-all duration-300 font-heading group active:scale-95 ${currentView === item.view ? 'bg-white text-primary-600 shadow-sm font-bold border border-gray-100 translate-x-2' : 'text-gray-500 hover:bg-white hover:text-gray-900 hover:shadow-sm hover:translate-x-1'}`}><item.icon size={20} strokeWidth={currentView === item.view ? 2.5 : 2} className="transition-transform group-hover:scale-110" /> <span>{item.label}</span></button>
                 ))}
             </nav>
 
             <div className="px-4 mb-4">
                 <h3 className="text-xs font-bold text-gray-400 uppercase mb-3 px-2 tracking-wider">Nhóm của bạn</h3>
                 <div className="space-y-1">
-                    {user?.followedCommunities && user.followedCommunities.length > 0 ? (communities.filter(c => user.followedCommunities?.includes(c.id)).map(com => ( <button key={com.id} onClick={() => goToCommunity(com.id)} className="flex items-center space-x-2 w-full px-2 py-2 rounded-lg hover:bg-white text-gray-600 text-sm transition-colors group"><img src={com.avatarUrl} className="w-6 h-6 rounded-md object-cover" /><span className="truncate group-hover:text-primary-600 font-medium">{com.name}</span></button> ))) : (<p className="text-xs text-gray-400 px-2 italic">Bạn chưa tham gia nhóm nào</p>)}
+                    {user?.followedCommunities && user.followedCommunities.length > 0 ? (communities.filter(c => user.followedCommunities?.includes(c.id)).map(com => ( <button key={com.id} onClick={() => goToCommunity(com.id)} className="flex items-center space-x-2 w-full px-2 py-2 rounded-lg hover:bg-white text-gray-600 text-sm transition-all hover:translate-x-1 group"><img src={com.avatarUrl} className="w-6 h-6 rounded-md object-cover shadow-sm" /><span className="truncate group-hover:text-primary-600 font-medium">{com.name}</span></button> ))) : (<p className="text-xs text-gray-400 px-2 italic">Bạn chưa tham gia nhóm nào</p>)}
                 </div>
             </div>
 
             <div className="px-4">
-                 <div className="bg-gradient-to-br from-primary-500 to-pink-500 rounded-2xl p-4 text-white shadow-lg shadow-primary-200 relative overflow-hidden group cursor-pointer" onClick={() => setCurrentView(ViewState.AI_ASSISTANT)}>
+                 <div className="bg-gradient-to-br from-primary-500 to-pink-500 rounded-2xl p-4 text-white shadow-lg shadow-primary-200 relative overflow-hidden group cursor-pointer hover:shadow-xl transition-all hover:-translate-y-1" onClick={() => setCurrentView(ViewState.AI_ASSISTANT)}>
                       <div className="absolute top-0 right-0 p-3 opacity-20"><Sparkles size={60} /></div>
                       <h4 className="font-bold text-lg mb-1 font-heading relative z-10">Trợ lý AI</h4>
                       <p className="text-primary-100 text-xs mb-3 relative z-10">Hỏi đáp mọi lúc mọi nơi</p>
-                      <button className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-white/30 transition-colors relative z-10 !text-white border border-white/40">Chat ngay</button>
+                      <button className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-white/30 transition-colors relative z-10 !text-white border border-white/40 shadow-sm active:scale-95">Chat ngay</button>
                  </div>
             </div>
         </div>
@@ -651,7 +650,7 @@ const App: React.FC = () => {
         {/* Main Feed */}
         <div className="flex-1 min-w-0">
              {/* Desktop Header */}
-             <div className="hidden lg:flex items-center justify-between mb-6 bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-gray-100 sticky top-4 z-30 shadow-sm">
+             <div className="hidden lg:flex items-center justify-between mb-6 bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-gray-100 sticky top-4 z-30 shadow-sm transition-all hover:shadow-md">
                   <div className="flex-1 max-w-lg relative group">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={20} />
                       <input type="text" placeholder="Tìm kiếm kinh nghiệm, tài liệu, cộng đồng..." className="w-full bg-gray-50 border-transparent focus:bg-white border focus:border-primary-200 rounded-xl py-2.5 pl-10 pr-4 outline-none transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -659,18 +658,18 @@ const App: React.FC = () => {
 
                   <div className="flex items-center space-x-4 ml-4 relative" ref={notificationRef}>
                        {/* Chat Button Moved Here */}
-                       <button onClick={() => setCurrentView(ViewState.CHAT)} className="p-2.5 rounded-xl bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors relative" title="Tin nhắn">
+                       <button onClick={() => setCurrentView(ViewState.CHAT)} className="p-2.5 rounded-xl bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors relative hover:text-primary-500 active:scale-95" title="Tin nhắn">
                            <MessageCircle size={20} />
                        </button>
 
-                       <button ref={bellRef} onClick={() => setShowNotifications(!showNotifications)} className={`p-2.5 rounded-xl transition-colors relative ${showNotifications ? 'bg-primary-50 text-primary-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
+                       <button ref={bellRef} onClick={() => setShowNotifications(!showNotifications)} className={`p-2.5 rounded-xl transition-all relative active:scale-95 ${showNotifications ? 'bg-primary-50 text-primary-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
                            <Bell size={20} />
-                           {unreadCount > 0 && <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>}
+                           {unreadCount > 0 && <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>}
                        </button>
 
                        {/* Notification Dropdown */}
                        {showNotifications && (
-                           <div className="absolute top-full right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in origin-top-right ring-1 ring-black ring-opacity-5">
+                           <div className="absolute top-full right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-pop-in origin-top-right ring-1 ring-black ring-opacity-5">
                                <div className="p-3 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center"><h3 className="font-bold text-gray-700 font-heading">Thông báo</h3>{unreadCount > 0 && <button className="text-xs text-primary-600 font-bold hover:underline">Đã đọc tất cả</button>}</div>
                                <div className="max-h-80 overflow-y-auto custom-scrollbar">
                                    {notifications.length === 0 ? <div className="p-6 text-center text-gray-400 text-sm">Chưa có thông báo nào</div> : notifications.map(notif => (
@@ -690,14 +689,14 @@ const App: React.FC = () => {
                                <img src={user.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-sm group-hover:scale-105 transition-transform object-cover" />
                                
                                {/* Desktop User Menu Dropdown */}
-                               <div className="hidden group-hover:block absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in">
+                               <div className="hidden group-hover:block absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-pop-in">
                                    <div className="p-2 space-y-1">
                                        {isAdmin(user) && (
-                                           <button onClick={(e) => { e.stopPropagation(); setCurrentView(ViewState.ADMIN); }} className="w-full text-left px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-lg flex items-center font-bold"><LayoutDashboard size={16} className="mr-2"/> Admin Panel</button>
+                                           <button onClick={(e) => { e.stopPropagation(); setCurrentView(ViewState.ADMIN); }} className="w-full text-left px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-lg flex items-center font-bold transition-colors"><LayoutDashboard size={16} className="mr-2"/> Admin Panel</button>
                                        )}
-                                       <button onClick={(e) => { e.stopPropagation(); goToProfile(user); }} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center font-medium"><UserIcon size={16} className="mr-2"/> Trang cá nhân</button>
-                                       <button onClick={(e) => { e.stopPropagation(); setCurrentView(ViewState.CHAT); }} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center font-medium"><MessageCircle size={16} className="mr-2"/> Tin nhắn</button>
-                                       <button onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center font-bold"><LogOut size={16} className="mr-2"/> Đăng xuất</button>
+                                       <button onClick={(e) => { e.stopPropagation(); goToProfile(user); }} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center font-medium transition-colors"><UserIcon size={16} className="mr-2"/> Trang cá nhân</button>
+                                       <button onClick={(e) => { e.stopPropagation(); setCurrentView(ViewState.CHAT); }} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center font-medium transition-colors"><MessageCircle size={16} className="mr-2"/> Tin nhắn</button>
+                                       <button onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center font-bold transition-colors"><LogOut size={16} className="mr-2"/> Đăng xuất</button>
                                    </div>
                                </div>
                            </div>
@@ -705,16 +704,16 @@ const App: React.FC = () => {
                   </div>
              </div>
 
-             {/* Dynamic Content */}
+             {/* Dynamic Content with Animation Wrapper */}
              {currentView === ViewState.CHAT ? (
-                 user ? <ChatSystem currentUser={user} initialConversationId={chatTargetConvId} onClose={() => setCurrentView(ViewState.HOME)} /> : <div className="p-10 text-center"><p className="text-gray-500 mb-4">Vui lòng đăng nhập để nhắn tin</p><Button onClick={() => setShowAuth(true)}>Đăng nhập ngay</Button></div>
+                 user ? <ChatSystem currentUser={user} initialConversationId={chatTargetConvId} onClose={() => setCurrentView(ViewState.HOME)} /> : <div className="p-10 text-center animate-fade-in"><p className="text-gray-500 mb-4">Vui lòng đăng nhập để nhắn tin</p><Button onClick={() => setShowAuth(true)}>Đăng nhập ngay</Button></div>
              ) : (
                  <>
                     {/* Updated: Use KidsGamesHub instead of MemoryGame */}
                     {currentView === ViewState.GAMES && <KidsGamesHub />}
                     {currentView === ViewState.AI_ASSISTANT && <ChatAssistant />}
                     {currentView === ViewState.COMMUNITIES && (
-                         <div className="animate-fade-in">
+                         <div className="animate-fade-in-up">
                              <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold text-gray-800 font-heading">Khám phá cộng đồng</h2><Button onClick={handleCheckCreateCommunity} variant="outline" size="sm">Tạo nhóm mới</Button></div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{communities.map(com => ( <CommunityCard key={com.id} community={com} isJoined={user?.followedCommunities?.includes(com.id) || false} onJoin={handleJoinCommunity} onLeave={handleLeaveCommunity} onClick={() => goToCommunity(com.id)} /> ))}</div>
                          </div>
@@ -730,19 +729,19 @@ const App: React.FC = () => {
         {/* Hide right sidebar when chatting */}
         {currentView !== ViewState.CHAT && (
             <div className="hidden lg:block w-80 shrink-0 space-y-6">
-                <div className="bg-gradient-to-br from-orange-400 to-orange-500 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
+                <div className="bg-gradient-to-br from-orange-400 to-orange-500 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden transition-transform hover:-translate-y-1 duration-500">
                     <div className="absolute top-0 right-0 p-4 opacity-10"><Award size={100} /></div>
-                    <div className="flex items-center mb-4 relative z-10"><div className="p-2 bg-white/20 rounded-full mr-3 backdrop-blur-sm"><Star fill="white" size={20} /></div><span className="font-bold text-sm tracking-wide bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm uppercase">{user ? user.badge : 'Khách'}</span></div>
+                    <div className="flex items-center mb-4 relative z-10"><div className="p-2 bg-white/20 rounded-full mr-3 backdrop-blur-sm"><Star fill="white" size={20} className="animate-spin-slow" /></div><span className="font-bold text-sm tracking-wide bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm uppercase">{user ? user.badge : 'Khách'}</span></div>
                     <div className="mb-4 relative z-10"><span className="text-5xl font-bold font-heading block mb-1">{user ? user.points : 0}</span><span className="text-orange-100 text-sm font-medium">Điểm tích lũy</span></div>
-                    <div className="w-full bg-black/10 rounded-full h-1.5 mb-2 overflow-hidden"><div className="bg-white h-full rounded-full" style={{ width: '40%' }}></div></div>
+                    <div className="w-full bg-black/10 rounded-full h-1.5 mb-2 overflow-hidden"><div className="bg-white h-full rounded-full transition-all duration-1000" style={{ width: '40%' }}></div></div>
                     <p className="text-xs text-orange-100 relative z-10">Tích thêm {1000 - (user?.points || 0)} điểm để lên hạng Chuyên Gia!</p>
                 </div>
-                <div className="bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-3xl p-1 shadow-lg">
-                    <div className="bg-white rounded-[20px] p-5">
-                        <div className="w-12 h-12 bg-violet-100 rounded-full flex items-center justify-center text-violet-600 mb-4 mx-auto"><Sparkles size={24} /></div>
+                <div className="bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-3xl p-1 shadow-lg transition-transform hover:-translate-y-1 duration-500">
+                    <div className="bg-white rounded-[20px] p-5 h-full">
+                        <div className="w-12 h-12 bg-violet-100 rounded-full flex items-center justify-center text-violet-600 mb-4 mx-auto animate-float"><Sparkles size={24} /></div>
                         <h3 className="text-center font-bold text-gray-800 text-lg mb-2 font-heading">Cần lời khuyên gấp?</h3>
                         <p className="text-center text-gray-500 text-sm mb-4 leading-relaxed">Mẹ Thông Thái AI luôn sẵn sàng trả lời mọi thắc mắc của bạn 24/7 về sức khỏe, dinh dưỡng và nuôi dạy bé.</p>
-                        <Button onClick={() => setCurrentView(ViewState.AI_ASSISTANT)} className="w-full !bg-violet-100 hover:!bg-violet-200 !text-indigo-600 shadow-none font-bold">Chat ngay</Button>
+                        <Button onClick={() => setCurrentView(ViewState.AI_ASSISTANT)} className="w-full !bg-violet-100 hover:!bg-violet-200 !text-indigo-600 shadow-none font-bold active:scale-95">Chat ngay</Button>
                     </div>
                 </div>
             </div>
@@ -751,28 +750,28 @@ const App: React.FC = () => {
 
       {/* MOBILE BOTTOM NAVIGATION */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center px-2 py-2 z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] safe-area-bottom">
-          <button onClick={() => setCurrentView(ViewState.HOME)} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${currentView === ViewState.HOME ? 'text-primary-600' : 'text-gray-400'}`}>
+          <button onClick={() => setCurrentView(ViewState.HOME)} className={`flex flex-col items-center p-2 rounded-xl transition-all active:scale-90 ${currentView === ViewState.HOME ? 'text-primary-600 -translate-y-1' : 'text-gray-400'}`}>
               <Home size={24} strokeWidth={currentView === ViewState.HOME ? 2.5 : 2} />
               <span className="text-[10px] font-bold mt-1">Trang chủ</span>
           </button>
-          <button onClick={() => setCurrentView(ViewState.COMMUNITIES)} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${currentView === ViewState.COMMUNITIES ? 'text-primary-600' : 'text-gray-400'}`}>
+          <button onClick={() => setCurrentView(ViewState.COMMUNITIES)} className={`flex flex-col items-center p-2 rounded-xl transition-all active:scale-90 ${currentView === ViewState.COMMUNITIES ? 'text-primary-600 -translate-y-1' : 'text-gray-400'}`}>
               <Users size={24} strokeWidth={currentView === ViewState.COMMUNITIES ? 2.5 : 2} />
               <span className="text-[10px] font-bold mt-1">Cộng đồng</span>
           </button>
           <div className="relative -top-5">
               <button 
                 onClick={() => { if(requireAuth()) setIsCreatingStory(true); }}
-                className="w-14 h-14 bg-gradient-to-br from-primary-500 to-pink-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-primary-200 hover:scale-105 transition-transform"
+                className="w-14 h-14 bg-gradient-to-br from-primary-500 to-pink-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-primary-200 hover:scale-110 active:scale-95 transition-transform"
               >
                   <Plus size={32} />
               </button>
           </div>
           {/* Replaced Chat with Games on Mobile Nav */}
-          <button onClick={() => setCurrentView(ViewState.GAMES)} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${currentView === ViewState.GAMES ? 'text-primary-600' : 'text-gray-400'}`}>
+          <button onClick={() => setCurrentView(ViewState.GAMES)} className={`flex flex-col items-center p-2 rounded-xl transition-all active:scale-90 ${currentView === ViewState.GAMES ? 'text-primary-600 -translate-y-1' : 'text-gray-400'}`}>
               <Gamepad2 size={24} strokeWidth={currentView === ViewState.GAMES ? 2.5 : 2} />
               <span className="text-[10px] font-bold mt-1">Games</span>
           </button>
-          <button onClick={() => user ? goToProfile(user) : setShowAuth(true)} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${currentView === ViewState.PROFILE ? 'text-primary-600' : 'text-gray-400'}`}>
+          <button onClick={() => user ? goToProfile(user) : setShowAuth(true)} className={`flex flex-col items-center p-2 rounded-xl transition-all active:scale-90 ${currentView === ViewState.PROFILE ? 'text-primary-600 -translate-y-1' : 'text-gray-400'}`}>
               {user ? <img src={user.avatar} className={`w-6 h-6 rounded-full object-cover border-2 ${currentView === ViewState.PROFILE ? 'border-primary-500' : 'border-transparent'}`} /> : <UserIcon size={24} />}
               <span className="text-[10px] font-bold mt-1">Cá nhân</span>
           </button>
