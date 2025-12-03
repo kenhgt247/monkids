@@ -351,7 +351,6 @@ export const CreatePost: React.FC<CreatePostProps> = ({ currentUser, communityNa
                 </Button>
             )}
         </div>
+    </div>
   );
 };
-
-
